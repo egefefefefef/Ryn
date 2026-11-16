@@ -43,7 +43,14 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DRYN_WERROR=ON
       - name: Build
-        run: cmake --build build --parallel
+        run: |
+          set -o pipefail
+          if ! cmake --build build --parallel 2>&1 | tee build.log; then
+            grep -E 'error:|warning:|Error [0-9]' build.log | head -25 | while IFS= read -r line; do
+              echo "::error title=build::$line"
+            done
+            exit 1
+          fi
       - name: Test
         env:
           CC: gcc
