@@ -1,0 +1,8 @@
+# User modules: geometry lives in geometry.ryn next to this file.
+import geometry
+
+fn main() -> i32:
+    let p = geometry.Point { x: 3, y: 4 }
+    println(geometry.distance(p))
+    println(geometry.describe(p))
+    return 0

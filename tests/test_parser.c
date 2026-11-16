@@ -176,6 +176,38 @@ static void test_syntax_error_is_reported(void) {
     tc_free(&tc);
 }
 
+static void test_qualified_module_syntax(void) {
+    TestCompilation tc;
+    tc_init(&tc);
+    TEST_ASSERT(tc_parse(&tc,
+                         "struct Point:\n"
+                         "    x: i32\n"
+                         "\n"
+                         "fn make() -> Point:\n"
+                         "    return Point { x: 1 }\n"
+                         "\n"
+                         "fn use(p: geo.Point) -> geo.Color:\n"
+                         "    let q = geo.Point { x: 2 }\n"
+                         "    let c = geo.Color.Red\n"
+                         "    return c\n"));
+    AstFnDecl *make = (AstFnDecl *)tc.program->decls.items[1];
+    AstStructLiteral *local = (AstStructLiteral *)((AstReturn *)make->body->stmts[0])->value;
+    TEST_ASSERT_STR("Point", local->type_syntax->name);
+
+    AstFnDecl *use = (AstFnDecl *)tc.program->decls.items[2];
+    TEST_ASSERT_STR("geo.Point", use->params[0].type_syntax->name);
+    TEST_ASSERT_STR("geo.Color", use->return_type_syntax->name);
+    AstVarDecl *var = (AstVarDecl *)use->body->stmts[0];
+    AstStructLiteral *qualified = (AstStructLiteral *)var->init;
+    TEST_ASSERT_STR("geo.Point", qualified->type_syntax->name);
+    AstVarDecl *color = (AstVarDecl *)use->body->stmts[1];
+    TEST_ASSERT_INT(AST_FIELD, color->init->kind);
+    AstField *variant = (AstField *)color->init;
+    TEST_ASSERT_INT(AST_FIELD, variant->object->kind);
+    TEST_ASSERT_STR("Red", variant->name);
+    tc_free(&tc);
+}
+
 void run_parser_tests(void) {
     test_function_declaration();
     test_operator_precedence();
@@ -183,6 +215,7 @@ void run_parser_tests(void) {
     test_if_else_chain();
     test_for_ranges();
     test_struct_declaration_and_literal();
+    test_qualified_module_syntax();
     test_array_literals();
     test_cast_binds_tighter_than_addition();
     test_syntax_error_is_reported();

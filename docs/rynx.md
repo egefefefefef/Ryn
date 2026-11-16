@@ -1,12 +1,12 @@
 # Rynx — the Ryn package manager
 
-`rynx` is the project and dependency manager that ships with Ryn. Version 0.1
+`rynx` is the project and dependency manager that ships with Ryn. Version 0.2
 is intentionally small: it manages a manifest, installs path and git
 dependencies, records a lock file, and delegates building and running to `ryn`.
 
 ```sh
 rynx --version
-# rynx 0.1.0 (Ryn v0.1)
+# rynx 0.2.0 (Ryn v0.2)
 # package manager for the Ryn language
 ```
 
@@ -72,7 +72,7 @@ multi-line strings and nested tables are not supported.
 # rynx.toml
 [package]
 name = "demo"
-version = "0.1.0"
+version = "0.2.0"
 entry = "src/main.ryn"
 
 [dependencies]
@@ -107,7 +107,8 @@ rynx.lock
 ```
 
 Path dependencies are not copied; the lock records the path and the version
-read from the dependency's manifest. Git dependencies are cloned into
+read from the dependency's manifest, and the compiler resolves imports through
+that manifest. Git dependencies are cloned into
 `.rynx/packages/<name>`. Existing clones are reused by `install`; delete
 `.rynx` or the package directory (or run `rynx clean`) to force a fresh clone.
 
@@ -131,14 +132,38 @@ installed, but do not rely on it for reproducible offline installs yet.
 
 ## Compiler integration
 
-The Ryn 0.1 compiler can import the standard modules `core`, `io`, `math`,
-`strings` and `mem`. User packages are installed and tracked by `rynx`, but the
-compiler does not yet resolve `import <package>` to `.rynx/packages/<package>`.
-Dependencies are groundwork for that module system; they cannot be imported by
-Ryn programs yet.
+Ryn 0.2 resolves `import <name>` to user modules and packages. `rynx build` and
+`rynx run` pass the project's `.rynx/packages` directory to the compiler with
+`--module-path`; a dependency installed there can be imported directly:
 
-`rynx build` and `rynx run` still use the package entry point, so a package is
-a complete standalone Ryn project.
+```ryn
+# src/main.ryn
+import greet
+
+fn main() -> i32:
+    println(greet.greeting())
+    return 0
+```
+
+Git dependencies are cloned into `.rynx/packages/<name>`. `path` dependencies
+are not copied; the compiler reads the `[dependencies]` table from the manifest
+closest to the importing file and maps each `path` dependency name to its
+directory. A package exposes a module from, in order:
+
+```
+src/lib.ryn
+src/<package>.ryn
+src/mod.ryn
+<package>.ryn
+lib.ryn
+mod.ryn
+entry from rynx.toml
+```
+
+The package entry point is still used by `rynx build` and `rynx run`, so a
+dependency remains a complete standalone Ryn project. See
+[modules.md](modules.md) for the full resolution order, visibility rules, and
+how module names are qualified.
 
 ## Toolchain discovery
 

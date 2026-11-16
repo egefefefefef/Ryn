@@ -132,15 +132,15 @@ RYN
 # version and help ----------------------------------------------------------
 "$RYN" version > "$TMP/version.txt" 2>&1
 check_status "version exits 0" 0 $?
-check_contains "version prints the compiler version" "ryn 0.1.0" "$TMP/version.txt"
+check_contains "version prints the compiler version" "ryn 0.2.0" "$TMP/version.txt"
 
 "$RYN" --version > "$TMP/version_flag.txt" 2>&1
 check_status "--version exits 0" 0 $?
-check_contains "--version prints the compiler version" "ryn 0.1.0" "$TMP/version_flag.txt"
+check_contains "--version prints the compiler version" "ryn 0.2.0" "$TMP/version_flag.txt"
 
 "$RYN" -V > "$TMP/version_short.txt" 2>&1
 check_status "-V exits 0" 0 $?
-check_contains "-V prints the compiler version" "ryn 0.1.0" "$TMP/version_short.txt"
+check_contains "-V prints the compiler version" "ryn 0.2.0" "$TMP/version_short.txt"
 
 "$RYN" help > "$TMP/help.txt" 2>&1
 check_status "help exits 0" 0 $?
@@ -230,6 +230,154 @@ if [ -f "$TMP/defaults/hello$EXE" ]; then default_bin=0; else default_bin=1; fi
 check_status "transpile derives hello.c" 0 "$default_c"
 check_status "build derives hello" 0 "$default_bin"
 
+# user modules --------------------------------------------------------------
+mkdir -p "$TMP/mods"
+cat > "$TMP/mods/main.ryn" <<'RYN'
+import geometry
+
+fn main() -> i32:
+    let p = geometry.Point { x: 3, y: 4 }
+    println(geometry.distance(p))
+    println(geometry.scaled(p, 2))
+    return 0
+RYN
+cat > "$TMP/mods/geometry.ryn" <<'RYN'
+import math
+import scaler
+
+struct Point:
+    x: i32
+    y: i32
+
+fn distance(p: Point) -> f64:
+    return math.sqrt((p.x * p.x + p.y * p.y) as f64)
+
+fn scaled(p: Point, factor: i32) -> i32:
+    return scaler.scale(p.x + p.y, factor)
+RYN
+cat > "$TMP/mods/scaler.ryn" <<'RYN'
+fn scale(value: i32, factor: i32) -> i32:
+    return value * factor
+RYN
+"$RYN" run "$TMP/mods/main.ryn" > "$TMP/mods.out" 2> "$TMP/mods.err"
+check_status "local modules run" 0 $?
+check_output "local modules resolve names and types" "5.0
+14" "$(cat "$TMP/mods.out")"
+
+mkdir -p "$TMP/mods/.rynx/packages/units/src"
+cat > "$TMP/mods/package_main.ryn" <<'RYN'
+import units
+
+fn main() -> i32:
+    println(units.triple(4))
+    return 0
+RYN
+cat > "$TMP/mods/.rynx/packages/units/src/lib.ryn" <<'RYN'
+fn triple(value: i32) -> i32:
+    return value * 3
+RYN
+"$RYN" run "$TMP/mods/package_main.ryn" > "$TMP/package_mods.out" 2> "$TMP/package_mods.err"
+check_status "packages in .rynx/packages are importable" 0 $?
+check_output "package modules run" "12" "$(cat "$TMP/package_mods.out")"
+
+mkdir -p "$TMP/mods/extra/foo/src"
+cat > "$TMP/mods/module_path_main.ryn" <<'RYN'
+import foo
+
+fn main() -> i32:
+    println(foo.twenty_one())
+    return 0
+RYN
+cat > "$TMP/mods/extra/foo/src/lib.ryn" <<'RYN'
+fn twenty_one() -> i32:
+    return 21
+RYN
+"$RYN" run --module-path "$TMP/mods/extra" "$TMP/mods/module_path_main.ryn" > "$TMP/module_path.out" 2> "$TMP/module_path.err"
+check_status "--module-path modules run" 0 $?
+check_output "--module-path is searched" "21" "$(cat "$TMP/module_path.out")"
+
+mkdir -p "$TMP/envmods/bar/src"
+cat > "$TMP/mods/env_main.ryn" <<'RYN'
+import bar
+
+fn main() -> i32:
+    println(bar.five())
+    return 0
+RYN
+cat > "$TMP/envmods/bar/src/lib.ryn" <<'RYN'
+fn five() -> i32:
+    return 5
+RYN
+(
+    cd "$TMP/mods" || exit 1
+    RYN_MODULE_PATH=../envmods "$RYN" run env_main.ryn > "$TMP/envmods.out" 2> "$TMP/envmods.err"
+    echo $? > "$TMP/envmods.status"
+)
+check_status "RYN_MODULE_PATH modules run" 0 "$(cat "$TMP/envmods.status")"
+check_output "RYN_MODULE_PATH is searched" "5" "$(cat "$TMP/envmods.out")"
+
+mkdir -p "$TMP/modcycle"
+cat > "$TMP/modcycle/a.ryn" <<'RYN'
+import b
+
+fn main() -> i32:
+    return 0
+RYN
+cat > "$TMP/modcycle/b.ryn" <<'RYN'
+import a
+
+fn helper() -> i32:
+    return 1
+RYN
+"$RYN" check "$TMP/modcycle/a.ryn" > /dev/null 2> "$TMP/modcycle.err"
+check_status "import cycles are rejected" 1 $?
+check_contains "import cycle is reported" "E0040" "$TMP/modcycle.err"
+
+mkdir -p "$TMP/aliasmask/a" "$TMP/aliasmask/b"
+cat > "$TMP/aliasmask/main.ryn" <<'RYN'
+import a
+import b
+
+fn main() -> i32:
+    println(a.value())
+    println(b.value())
+    return 0
+RYN
+cat > "$TMP/aliasmask/a/mod.ryn" <<'RYN'
+import util
+
+fn value() -> i32:
+    return util.one() + 10
+RYN
+cat > "$TMP/aliasmask/a/util.ryn" <<'RYN'
+fn one() -> i32:
+    return 1
+RYN
+cat > "$TMP/aliasmask/b/mod.ryn" <<'RYN'
+import util
+
+fn value() -> i32:
+    return util.one() + 20
+RYN
+cat > "$TMP/aliasmask/b/util.ryn" <<'RYN'
+fn one() -> i32:
+    return 2
+RYN
+"$RYN" run "$TMP/aliasmask/main.ryn" > "$TMP/aliasmask.out" 2> "$TMP/aliasmask.err"
+check_status "modules with the same alias in different files run" 0 $?
+check_output "module aliases do not collide" "11
+22" "$(cat "$TMP/aliasmask.out")"
+
+cat > "$TMP/mods/missing_import.ryn" <<'RYN'
+import nowhere
+
+fn main() -> i32:
+    return 0
+RYN
+"$RYN" check "$TMP/mods/missing_import.ryn" > /dev/null 2> "$TMP/nowhere.err"
+check_status "missing modules are rejected" 1 $?
+check_contains "missing module is reported" "unknown module 'nowhere'" "$TMP/nowhere.err"
+
 # usage errors --------------------------------------------------------------
 "$RYN" frobnicate > /dev/null 2>&1
 check_status "unknown command exits 2" 2 $?
@@ -258,6 +406,12 @@ if [ -n "$EXAMPLES_DIR" ]; then
         esac
         check_status "example $name runs" 0 $?
     done
+    if [ -f "$EXAMPLES_DIR/modules/main.ryn" ]; then
+        "$RYN" run "$EXAMPLES_DIR/modules/main.ryn" > "$TMP/example_modules.out" 2>&1
+        check_status "example modules/main.ryn runs" 0 $?
+        check_output "example modules/main.ryn resolves imports" "5.0
+point" "$(cat "$TMP/example_modules.out")"
+    fi
 fi
 
 printf 'cli tests: %d checks, %d failures\n' "$CHECKS" "$FAILS"

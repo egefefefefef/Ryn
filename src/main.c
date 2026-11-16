@@ -14,6 +14,9 @@ typedef struct CliState {
     const char **includes;
     size_t nincludes;
     size_t include_capacity;
+    const char **module_paths;
+    size_t nmodule_paths;
+    size_t module_path_capacity;
     char **program_args;
     size_t nprogram_args;
     size_t program_arg_capacity;
@@ -46,6 +49,7 @@ static void print_usage(FILE *out) {
           "  --target <t>   target backend; only 'native' is available\n"
           "  --cc <path>    C compiler to use (default: $CC or cc)\n"
           "  --include <h>  add '#include <h>' to the generated C (repeatable)\n"
+          "  --module-path <dir>  add a module search directory (repeatable)\n"
           "  --dump-tokens  print the token stream\n"
           "  --dump-ast     print the syntax tree\n"
           "  --emit-ir      print the linear intermediate representation\n"
@@ -68,6 +72,20 @@ static bool push_include(CliState *cli, const char *value) {
         cli->include_capacity = cap;
     }
     cli->includes[cli->nincludes++] = value;
+    return true;
+}
+
+static bool push_module_path(CliState *cli, const char *value) {
+    if (cli->nmodule_paths == cli->module_path_capacity) {
+        size_t cap = cli->module_path_capacity ? cli->module_path_capacity * 2 : 8;
+        const char **grown = (const char **)realloc(cli->module_paths, cap * sizeof(char *));
+        if (!grown) {
+            return false;
+        }
+        cli->module_paths = grown;
+        cli->module_path_capacity = cap;
+    }
+    cli->module_paths[cli->nmodule_paths++] = value;
     return true;
 }
 
@@ -178,6 +196,15 @@ int main(int argc, char **argv) {
             }
             continue;
         }
+        if (strcmp(arg, "--module-path") == 0) {
+            if (i + 1 >= argc) {
+                return usage_error("option '%s' requires a value", arg);
+            }
+            if (!push_module_path(&cli, argv[++i])) {
+                return RYN_EXIT_USAGE;
+            }
+            continue;
+        }
         if (strcmp(arg, "--debug") == 0) {
             cli.options.debug = true;
             cli.options.release = false;
@@ -232,12 +259,15 @@ int main(int argc, char **argv) {
     cli.options.program_path = argv[0];
     cli.options.includes = cli.includes;
     cli.options.nincludes = cli.nincludes;
+    cli.options.module_paths = cli.module_paths;
+    cli.options.nmodule_paths = cli.nmodule_paths;
     cli.options.nprogram_args = (int)cli.nprogram_args;
     cli.options.program_args = cli.program_args;
 
     int code = compiler_execute(&cli.options);
 
     free(cli.includes);
+    free(cli.module_paths);
     free(cli.program_args);
     return code;
 }

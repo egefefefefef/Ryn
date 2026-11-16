@@ -249,7 +249,7 @@ static int cmd_init(int argc, char **argv) {
     RynxManifest manifest;
     rynx_manifest_init(&manifest);
     manifest.name = arena_strdup(&arena, name);
-    manifest.version = arena_strdup(&arena, "0.1.0");
+    manifest.version = arena_strdup(&arena, "0.2.0");
     manifest.entry = arena_strdup(&arena, RYNX_DEFAULT_ENTRY);
 
     if (!rynx_manifest_write(manifest_path, &manifest, err, sizeof(err))) {
@@ -734,9 +734,11 @@ static int run_ryn(const char *self, const char *command, int argc, char **argv)
     }
 
     char *ryn = find_ryn(self);
-    char **child = (char **)calloc((size_t)argc + 4, sizeof(char *));
+    char *packages = ryn_path_join(root, RYNX_PACKAGES_DIR);
+    char **child = (char **)calloc((size_t)argc + 6, sizeof(char *));
     if (!child) {
         errorf("out of memory");
+        free(packages);
         free(ryn);
         free(entry);
         rynx_manifest_free(&manifest);
@@ -747,6 +749,8 @@ static int run_ryn(const char *self, const char *command, int argc, char **argv)
     size_t count = 0;
     child[count++] = ryn;
     child[count++] = (char *)command;
+    child[count++] = "--module-path";
+    child[count++] = packages;
     child[count++] = entry;
     for (int i = 0; i < argc; i++) {
         child[count++] = argv[i];
@@ -759,6 +763,7 @@ static int run_ryn(const char *self, const char *command, int argc, char **argv)
         code = RYNX_EXIT_TOOLCHAIN;
     }
     free(child);
+    free(packages);
     free(ryn);
     free(entry);
     rynx_manifest_free(&manifest);

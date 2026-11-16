@@ -12,7 +12,7 @@ Structs and arrays are **values**:
 - Passing a struct to a function, and returning one, copies it (including any
   arrays it contains).
 - Mutating a copy never affects the original.
-- Bare arrays cannot be passed to or returned from functions in 0.1; use a
+- Bare arrays cannot be passed to or returned from functions in 0.2; use a
   pointer or a struct wrapper.
 
 ```ryn
@@ -55,7 +55,7 @@ fn bad() -> ptr<i32>:
     return &x          # dangling pointer: do not do this
 ```
 
-Ryn 0.1 has no borrow checker. Lifetimes are the programmer's responsibility and
+Ryn 0.2 has no borrow checker. Lifetimes are the programmer's responsibility and
 are documented here rather than enforced.
 
 ## Pointers
@@ -143,12 +143,12 @@ by later reads, so the caller owns it and can free it with `strings.free`.
 - The length is part of the array type. There is no reallocation of a fixed-size
   array.
 - Constant indices are checked at compile time, including negative indices.
-- Non-constant array indices are **not** checked at run time in 0.1. Out-of-bounds
+- Non-constant array indices are **not** checked at run time in 0.2. Out-of-bounds
   access is undefined behaviour.
 - Pointer indexing is never bounds-checked.
 - String indexing is checked at run time.
 
-If you need bounds-checked dynamic sequences in 0.1, use an array plus an
+If you need bounds-checked dynamic sequences in 0.2, use an array plus an
 explicit length and check before indexing; slices will add a checked fat pointer
 in a future version.
 
@@ -186,7 +186,7 @@ generated C file can be compiled and linked with arbitrary C code, provided the
 declarations match. Passing owning strings to C transfers no ownership
 information — decide explicitly who frees what.
 
-## Summary of guarantees (0.1)
+## Summary of guarantees (0.2)
 
 Guaranteed:
 

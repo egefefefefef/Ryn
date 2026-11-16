@@ -92,12 +92,12 @@ check_output() {
 # version and help ----------------------------------------------------------
 "$RYNX" --version > "$TMP/version.out" 2> "$TMP/version.err"
 check_status "rynx --version exits 0" 0 $?
-check_contains "rynx --version prints the tool version" "rynx 0.1.0" "$TMP/version.out"
-check_contains "rynx --version names the Ryn version" "Ryn v0.1" "$TMP/version.out"
+check_contains "rynx --version prints the tool version" "rynx 0.2.0" "$TMP/version.out"
+check_contains "rynx --version names the Ryn version" "Ryn v0.2" "$TMP/version.out"
 
 "$RYNX" version > "$TMP/version2.out" 2>&1
 check_status "rynx version exits 0" 0 $?
-check_contains "rynx version prints the tool version" "rynx 0.1.0" "$TMP/version2.out"
+check_contains "rynx version prints the tool version" "rynx 0.2.0" "$TMP/version2.out"
 
 "$RYNX" --help > "$TMP/help.out" 2>&1
 check_status "rynx --help exits 0" 0 $?
@@ -153,8 +153,11 @@ entry = "src/greet.ryn"
 RYN
 mkdir -p "$TMP/greet/src"
 cat > "$TMP/greet/src/greet.ryn" <<'RYN'
+fn greeting() -> str:
+    return "greetings"
+
 fn main() -> i32:
-    println("greetings")
+    println(greeting())
     return 0
 RYN
 
@@ -174,7 +177,7 @@ check_contains "lock records the dependency version" 'version = "0.2.0"' "$TMP/d
     "$RYNX" list > "$TMP/list.out" 2>&1
 )
 check_status "rynx list exits 0" 0 $?
-check_contains "rynx list shows the project" "demo 0.1.0" "$TMP/list.out"
+check_contains "rynx list shows the project" "demo 0.2.0" "$TMP/list.out"
 check_contains "rynx list shows the dependency" "greet" "$TMP/list.out"
 
 (
@@ -190,6 +193,38 @@ check_status "rynx add rejects a duplicate dependency" 1 $?
 )
 check_status "rynx install exits 0" 0 "$(cat "$TMP/install.status")"
 check_contains "rynx install reports the dependency count" "installed 1 dependency" "$TMP/install.out"
+
+# installed packages are importable from the entry point --------------------
+mkdir -p "$TMP/usepkg/src"
+cat > "$TMP/usepkg/rynx.toml" <<'RYN'
+[package]
+name = "usepkg"
+version = "0.2.0"
+entry = "src/main.ryn"
+
+[dependencies]
+greet = { path = "../greet" }
+RYN
+cat > "$TMP/usepkg/src/main.ryn" <<'RYN'
+import greet
+
+fn main() -> i32:
+    println(greet.greeting())
+    return 0
+RYN
+(
+    cd "$TMP/usepkg" || exit 1
+    "$RYNX" install > "$TMP/usepkg_install.out" 2> "$TMP/usepkg_install.err"
+    echo $? > "$TMP/usepkg_install.status"
+)
+check_status "rynx installs the package used by the import test" 0 "$(cat "$TMP/usepkg_install.status")"
+(
+    cd "$TMP/usepkg" || exit 1
+    "$RYNX" run > "$TMP/usepkg_run.out" 2> "$TMP/usepkg_run.err"
+    echo $? > "$TMP/usepkg_run.status"
+)
+check_status "rynx run compiles an installed package import" 0 "$(cat "$TMP/usepkg_run.status")"
+check_output "installed package function runs" "greetings" "$(cat "$TMP/usepkg_run.out")"
 
 (
     cd "$TMP/demo" || exit 1

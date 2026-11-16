@@ -723,7 +723,7 @@ static void check_binary(Sema *sema, AstBinary *binary, Type *expected, ExprValu
     if (lhs.type->kind == TY_PTR || rhs.type->kind == TY_PTR) {
         sema_error_note(sema, binary->base.pos, 1, E_BAD_OPERATOR,
                         "index a pointer with p[i] or use the mem module",
-                        "pointer arithmetic is not supported in Ryn 0.1");
+                        "pointer arithmetic is not supported in Ryn 0.2");
         set_value(out, prim(sema, TY_ERROR));
         return;
     }

@@ -14,6 +14,7 @@ strings through the stages:
 | `test_sema.c` | Valid programs, type errors, mutability, flow, main rules, warnings |
 | `test_codegen.c` | Generated C fragments for calls, structs, arrays, control flow, division guards, function values |
 | `test_package.c` | `rynx.toml` parsing, validation, defaults, round-trips, dependency editing, name rules |
+| `test_module.c` | Local imports, `.rynx/packages`, `--module-path`, qualified names, import cycles, missing modules |
 
 Run them directly:
 
@@ -36,7 +37,7 @@ AddressSanitizer.
 
 `run_rynx_tests.sh <rynx-binary> <ryn-binary>` exercises the package manager:
 `--version`/`version`, help, `init`, `add`, `install`, `list`, `remove`,
-`run`/`build`, lock files, and error paths.
+`run`/`build`, lock files, importing an installed package, and error paths.
 
 `run_cli_tests.sh <ryn-binary> <runtime-dir> [examples-dir]` exercises the real
 compiler binary:
@@ -48,7 +49,10 @@ compiler binary:
 - `build` with `-o`, `--release`, default output names;
 - `transpile`, independent compilation of the generated C, execution of the
   result;
-- every program in `examples/`, including stdin-driven `io_sum.ryn`.
+- user modules, `.rynx/packages`, `--module-path`, import cycles and missing
+  modules;
+- every program in `examples/`, including stdin-driven `io_sum.ryn` and the
+  multi-file `examples/modules/main.ryn`.
 
 The CMake tests `ryn-cli` and `rynx-cli` wire these up automatically on UNIX
 systems:

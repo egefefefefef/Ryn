@@ -94,12 +94,12 @@ let c: [u8; 16] = [0; 16]
 
 - The length is part of the type (`[i32; 4]` ≠ `[i32; 8]`).
 - Arrays are value types; assignment copies them.
-- Bare arrays cannot be function parameters or return types in 0.1. Pass a
+- Bare arrays cannot be function parameters or return types in 0.2. Pass a
   `ptr<T>` (plus a length) or wrap the array in a struct.
 - Elements are stored contiguously with C layout.
 - Indexing uses `a[i]`, where `i` is any integer type.
 - Negative constant indices and constant out-of-range indices are compile-time
-  errors (`E0035`). Non-constant indices are not bounds-checked in 0.1.
+  errors (`E0035`). Non-constant indices are not bounds-checked in 0.2.
 
 Array literals support `[a, b, c]` with an optional trailing comma, the repeat
 form `[value; N]`, and the empty literal `[]` (whose type must come from an
@@ -120,7 +120,7 @@ ptr<Point>      # pointer to a struct
 - `null` is the null pointer value; it compares with `==`/`!=` and prints `null`.
 - Pointer comparison requires compatible pointee types (identical, or one of them
   `void`); ordering pointers is not supported.
-- Pointer arithmetic is not supported in 0.1.
+- Pointer arithmetic is not supported in 0.2.
 
 See [memory-model.md](memory-model.md) for lifetimes and ownership.
 
@@ -135,7 +135,7 @@ struct Line:
 - Named fields, declaration order is layout order.
 - Value type: assignment, argument passing and returns copy the entire struct.
 - The generated C uses a plain `struct`, so padding follows the platform C ABI.
-  Ryn has no `packed` attribute in 0.1.
+  Ryn has no `packed` attribute in 0.2.
 - Fields may be primitives, pointers, arrays, other structs, enums or function
   values.
 - Recursive structs must use a pointer (`next: ptr<Node>`); recursion by value is
@@ -160,7 +160,7 @@ enum Color:
   outside `i32`.
 - Variants are referenced with qualification: `Color.Red`.
 - Enums can be compared, cast to/from integers, and printed after a cast.
-- Ryn 0.1 enums are plain integer constants: they cannot carry payloads.
+- Ryn 0.2 enums are plain integer constants: they cannot carry payloads.
 
 ## Function types
 
@@ -184,7 +184,7 @@ is `E0015`.
 The compiler has an internal error type used to suppress cascading diagnostics;
 it is not nameable in source code.
 
-## Not implemented in 0.1
+## Not implemented in 0.2
 
 - **Slices** `[]T`: recognized and rejected with `E0037`. Use `[T; N]` arrays with
   an accompanying length, or a pointer plus explicit count.

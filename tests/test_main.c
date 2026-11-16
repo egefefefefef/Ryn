@@ -5,6 +5,7 @@ void run_parser_tests(void);
 void run_sema_tests(void);
 void run_codegen_tests(void);
 void run_package_tests(void);
+void run_module_tests(void);
 
 int main(void) {
     run_lexer_tests();
@@ -12,6 +13,7 @@ int main(void) {
     run_sema_tests();
     run_codegen_tests();
     run_package_tests();
+    run_module_tests();
 
     printf("unit tests: %d passed, %d failed\n", test_stats.passed, test_stats.failed);
     return test_stats.failed == 0 ? 0 : 1;

@@ -1,8 +1,8 @@
 # The Ryn Language Specification
 
-**Version 0.1 ("Genesis")**
+**Version 0.2 ("Horizon")**
 
-This document describes the language accepted by the Ryn 0.1 compiler. It is a
+This document describes the language accepted by the Ryn 0.2 compiler. It is a
 description of the implementation, not an aspirational design: constructs that
 are not implemented are marked as such and are rejected by the compiler.
 
@@ -27,7 +27,7 @@ A comment begins with `#` and extends to the end of the line:
 let answer = 42   # and so is this
 ```
 
-Block comments are planned but **not implemented** in 0.1.
+Block comments are planned but **not implemented** in 0.2.
 
 ### 1.2 Lines and indentation
 
@@ -96,7 +96,9 @@ storage duration.
 
 A program is a sequence of imports, function declarations, struct declarations
 and enum declarations. Imports must appear before any other declaration
-(`E0033`).
+(`E0033`). The program may span several source files: an import that does not
+name a built-in module loads a user module, and each file may in turn import
+more modules.
 
 ```ryn
 import math
@@ -110,9 +112,11 @@ fn main() -> i32:
     return 0
 ```
 
-Exactly one function named `main` must exist. It must not be `extern`, must take
-no parameters, and must return `i32` or `void` (`E0019`, `E0030`). A program
-whose `main` returns `void` exits with status 0.
+Exactly one function named `main` must exist in the entry file. It must not be
+`extern`, must take no parameters, and must return `i32` or `void` (`E0019`,
+`E0030`). A program whose `main` returns `void` exits with status 0. Imported
+modules may define their own `main`; those functions are namespaced by the
+import alias and are not program entry points.
 
 Function bodies may refer to functions declared later in the file; declaration
 order does not matter.
@@ -154,7 +158,7 @@ Arrays have a compile-time length and are value types. Function types describe
 function values; a function name can be assigned to a function-typed variable,
 stored in a struct field, passed as an argument and returned from a function.
 
-Slices (`[]T`) and generics are **not implemented** in 0.1. Their syntax is
+Slices (`[]T`) and generics are **not implemented** in 0.2. Their syntax is
 recognized and rejected with `E0037`, with a suggestion to use an array or a
 pointer.
 
@@ -281,9 +285,17 @@ compiler reports it; Ryn does not verify linkage.
 import math
 ```
 
-An import makes a built-in module available under its name (`math.sqrt`,
-`math.PI`). Importing an unknown module is `E0026`. Modules are described in
-[modules.md](modules.md). Imports do not load files in 0.1.
+An import binds either a built-in module or a user module written in Ryn under
+its name. Built-in members use the module name (`math.sqrt`, `math.PI`).
+Importing a name that is not a built-in module loads `name.ryn` or
+`name/mod.ryn` next to the importing file, a `--module-path` directory, or
+`.rynx/packages/name`. An import that cannot be resolved is `E0026`; an import
+cycle is `E0040`.
+
+User modules expose their top-level functions, structs and enums through the
+import alias (`geometry.Point`, `geometry.length`). The distinction between
+built-in and user modules is otherwise invisible in the language; both are
+described in [modules.md](modules.md).
 
 ---
 
@@ -324,7 +336,7 @@ if ready:
     println(x)
 ```
 
-A bare indented block is not a statement in 0.1; blocks appear only as bodies of
+A bare indented block is not a statement in 0.2; blocks appear only as bodies of
 `if`, `while`, `for` and `fn`.
 
 ### 6.4 `if` / `else if` / `else`
@@ -366,7 +378,7 @@ for i in 0..=10:     # i = 0, 1, ..., 10
 Bounds must be integers. The loop variable is a new immutable binding whose type
 is the common integer type of the bounds (untyped bounds become `i32`). The
 current implementation evaluates the bounds once before the loop; the end bound
-is not re-evaluated. Ranges are only available in `for` headers in 0.1.
+is not re-evaluated. Ranges are only available in `for` headers in 0.2.
 
 ### 6.7 `return`
 
@@ -428,7 +440,7 @@ pointers. `<`, `<=`, `>`, `>=` are defined for numbers, chars, enums and bools,
 but **not** for pointers or strings.
 
 Strings compare structurally with `==`/`!=`. Aggregates (structs and arrays) do
-not support comparison in 0.1; compare their fields/elements explicitly.
+not support comparison in 0.2; compare their fields/elements explicitly.
 
 ### 7.4 Bitwise and shifts
 
@@ -491,7 +503,7 @@ let v = *p
 `E0014`. `*` requires a pointer (`E0013`). The pointer type is `ptr<T>` where
 `T` is the pointee type.
 
-Pointer arithmetic (`p + 1`) is not supported in 0.1 and is reported as
+Pointer arithmetic (`p + 1`) is not supported in 0.2 and is reported as
 `E0011`.
 
 ---
@@ -542,7 +554,7 @@ with status 1.
 
 ---
 
-## 11. Known limitations in 0.1
+## 11. Known limitations in 0.2
 
 These are rejected or documented rather than silently mis-compiled:
 
@@ -554,7 +566,8 @@ These are rejected or documented rather than silently mis-compiled:
 - aggregate (struct/array) equality
 - bare array parameters and array return types
 - variadic functions and user-defined overloads
-- packages or file-based modules; `import` names builtin modules only
+- `pub`/private visibility; every top-level declaration is public
+- nested module paths (`import foo.bar`)
 - LLVM backend (planned; the IR/backend interface is ready for it)
 
 See [compiler-architecture.md](compiler-architecture.md) for how the stages are

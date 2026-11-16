@@ -1,5 +1,5 @@
 (*
- * Ryn 0.1 — formal grammar
+ * Ryn 0.2 — formal grammar
  *
  * The grammar operates on the token stream produced by the lexer. The lexer
  * inserts three layout tokens:
@@ -50,10 +50,13 @@ parameter       = identifier ":" type ;
 (* Types                                                               *)
 (* ------------------------------------------------------------------ *)
 
-type            = identifier
+type            = qualified_name
                 | "ptr" "<" type ">"
                 | "[" type ";" integer "]"
                 | "fn" "(" [ type { "," type } [ "," ] ] ")" [ "->" type ] ;
+
+(* A type or module member may be qualified: geometry.Point. *)
+qualified_name  = identifier { "." identifier } ;
 
 (* ------------------------------------------------------------------ *)
 (* Structs and enums                                                   *)
@@ -168,7 +171,7 @@ array_literal   = "[" "]"                                   (* empty *)
                 | "[" expression { "," expression } [ "," ] "]"
                 | "[" expression ";" integer "]" ;          (* repeat form *)
 
-struct_literal  = identifier "{" [ initializer { "," initializer } [ "," ] ] "}" ;
+struct_literal  = qualified_name "{" [ initializer { "," initializer } [ "," ] ] "}" ;
 
 initializer     = identifier ":" expression ;
 
@@ -177,7 +180,7 @@ initializer     = identifier ":" expression ;
  *
  *  - Slices (`[]T`) and generic parameter lists are reserved syntax. The
  *    parser recognises them and reports E0037; they are not part of the
- *    accepted language in 0.1.
+ *    accepted language in 0.2.
  *  - There is no operator precedence between the six comparison operators:
  *    they are left-associative at one level, as in C.
  *  - `not` is a logical operator parsed above comparisons; `!` is a unary

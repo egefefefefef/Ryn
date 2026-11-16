@@ -23,7 +23,7 @@ typedef struct CompilerOptions {
     const char *input_path;  /* input .ryn file */
     const char *output_path; /* -o, may be NULL for the default */
     const char *cc;          /* C compiler executable, NULL for auto */
-    const char *target;      /* "native" (only supported target in v0.1) */
+    const char *target;      /* "native" (only supported target) */
     const char *program_path; /* argv[0], used to locate the runtime */
     bool debug;              /* -O0 -g */
     bool release;            /* -O2 (default is debug) */
@@ -34,6 +34,11 @@ typedef struct CompilerOptions {
 
     const char *const *includes;
     size_t nincludes;
+
+    /* Additional directories searched for imported modules and packages,
+     * from --module-path (repeatable). */
+    const char *const *module_paths;
+    size_t nmodule_paths;
 
     int nprogram_args;
     char *const *program_args;

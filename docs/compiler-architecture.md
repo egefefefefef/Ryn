@@ -14,7 +14,10 @@ Source Manager ── bytes, line index, SourcePos
 Lexer ── tokens + INDENT/DEDENT/NEWLINE layout
    │
    ▼
-Parser ── AST (arena allocated)
+Parser ── AST per source file (arena allocated)
+   │
+   ▼
+Module Loader ── import graph, merged AST, qualified names
    │
    ▼
 Semantic Analyzer / Type Checker ── resolves names, types, flow; annotates the AST
@@ -29,8 +32,9 @@ C11 Code Generator ── generated .c file + runtime
 Compiler Driver ── invokes cc, links, produces an executable
 ```
 
-The driver (`src/compiler.c`) owns the lifetime of every stage and is the only
-component that touches the filesystem or spawns processes.
+The driver (`src/compiler.c`) owns the lifetime of every stage and spawns
+processes. Source files are read by the source manager on behalf of the module
+loader; no other stage touches the filesystem.
 
 ## Source layout
 
@@ -43,6 +47,7 @@ component that touches the filesystem or spawns processes.
 | `include/ast.h`, `src/ast.c` | AST nodes, constructors, debug dump |
 | `include/types.h`, `src/types.c` | Type representation, equality, widening, printing |
 | `include/parser.h`, `src/parser.c` | Recursive-descent/precedence-climbing parser |
+| `include/module.h`, `src/module.c` | Import resolution, multi-file loading, namespace rewriting, AST merge |
 | `include/builtins.h`, `src/builtins.c` | Standard library registry and overload tables |
 | `include/sema.h`, `src/sema*.c` | Scopes, name resolution, type checking, flow analysis |
 | `include/ir.h`, `src/ir.c` | IR data model, lowering, textual dumper |
@@ -55,7 +60,7 @@ component that touches the filesystem or spawns processes.
 | `tests/` | Unit tests and CLI integration tests |
 
 Headers form a DAG: `common → source → diagnostics → token → lexer → ast/types →
-parser → builtins → sema → ir → codegen → compiler`.
+parser → module → builtins → sema → ir → codegen → compiler`.
 
 ## Stage details
 
@@ -88,6 +93,24 @@ avoid cascades.
 
 The parser is deliberately permissive about later semantic checks (e.g. it
 parses `if` conditions as expressions); the semantic analyzer enforces types.
+
+### Module loader
+
+`modules_load_program` starts from the entry file, parses it, then recursively
+resolves every `import`. Built-in module names are left for the semantic
+analyzer; every other name is looked up next to the importing file, in
+`--module-path` and `$RYN_MODULE_PATH` directories, in the manifest's path
+dependencies, and in `.rynx/packages`. A canonical-path table detects
+duplicate loads and cycles (`E0040`).
+
+Each user module is rewritten before the ASTs are merged. Top-level function,
+struct and enum names become `alias.name`; references to the module's own
+top-level names are qualified, while qualified references to imported modules
+are collapsed into a single identifier. A scope stack keeps local variables and
+parameters from being rewritten when they shadow a module member. Import
+declarations for user modules disappear from the merged program; built-in
+imports are deduplicated. The result is one `AstProgram` for sema, IR and
+codegen, so later stages have no notion of files.
 
 ### AST and annotations
 
@@ -275,7 +298,7 @@ ctest --test-dir build-asan --output-on-failure
 
 ## Verification status
 
-The 0.1 release has been built and tested with GCC 12 on Linux, including
+The 0.2 release has been built and tested with GCC 12 on Linux, including
 AddressSanitizer/UndefinedBehaviorSanitizer runs of the compiler and of
 generated programs. Clang is supported by the build configuration and the code
 uses only standard C17 constructs, but it was not available in the development
