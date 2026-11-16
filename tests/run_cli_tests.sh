@@ -8,6 +8,10 @@ RYN=${1:?usage: run_cli_tests.sh <ryn> <runtime-dir> [examples-dir]}
 RUNTIME_DIR=${2:?usage: run_cli_tests.sh <ryn> <runtime-dir> [examples-dir]}
 EXAMPLES_DIR=${3:-}
 CC_BIN=${CC:-cc}
+EXE=
+case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) EXE=.exe ;;
+esac
 
 # Make both paths absolute: some tests change into a scratch directory.
 case "$RYN" in
@@ -184,11 +188,11 @@ check_status "extern C call runs" 0 $?
 check_output "extern C call output" "from C" "$(cat "$TMP/extern.out")"
 
 # build ---------------------------------------------------------------------
-"$RYN" build "$TMP/hello.ryn" -o "$TMP/hello_bin" > "$TMP/build.out" 2> "$TMP/build.err"
+"$RYN" build "$TMP/hello.ryn" -o "$TMP/hello_bin$EXE" > "$TMP/build.out" 2> "$TMP/build.err"
 check_status "build produces an executable" 0 $?
-check_output "built program runs" "Hello, Ryn!" "$("$TMP/hello_bin")"
+check_output "built program runs" "Hello, Ryn!" "$("$TMP/hello_bin$EXE")"
 
-"$RYN" build --release "$TMP/hello.ryn" -o "$TMP/hello_rel" > /dev/null 2>&1
+"$RYN" build --release "$TMP/hello.ryn" -o "$TMP/hello_rel$EXE" > /dev/null 2>&1
 check_status "release build works" 0 $?
 
 # transpile -----------------------------------------------------------------
@@ -196,9 +200,9 @@ check_status "release build works" 0 $?
 check_status "transpile produces C" 0 $?
 check_contains "generated C includes the runtime" "ryn_runtime.h" "$TMP/hello.c"
 "$CC_BIN" -std=c11 -I "$RUNTIME_DIR" "$TMP/hello.c" "$RUNTIME_DIR"/*.c -lm \
-    -o "$TMP/hello_from_c" > "$TMP/cc.err" 2>&1
+    -o "$TMP/hello_from_c$EXE" > "$TMP/cc.err" 2>&1
 check_status "generated C compiles with a C compiler" 0 $?
-check_output "C-compiled program runs" "Hello, Ryn!" "$("$TMP/hello_from_c")"
+check_output "C-compiled program runs" "Hello, Ryn!" "$("$TMP/hello_from_c$EXE")"
 
 # default output names ------------------------------------------------------
 mkdir -p "$TMP/defaults"
@@ -209,7 +213,7 @@ cp "$TMP/hello.ryn" "$TMP/defaults/hello.ryn"
     "$RYN" build hello.ryn > /dev/null 2>&1
 )
 if [ -f "$TMP/defaults/hello.c" ]; then default_c=0; else default_c=1; fi
-if [ -f "$TMP/defaults/hello" ]; then default_bin=0; else default_bin=1; fi
+if [ -f "$TMP/defaults/hello$EXE" ]; then default_bin=0; else default_bin=1; fi
 check_status "transpile derives hello.c" 0 "$default_c"
 check_status "build derives hello" 0 "$default_bin"
 

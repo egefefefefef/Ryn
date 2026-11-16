@@ -1,0 +1,178 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  RYN_VERSION: ${{ github.ref_name }}
+
+jobs:
+  linux:
+    name: Linux x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DRYN_WERROR=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Package
+        run: |
+          name="ryn-${RYN_VERSION}-linux-x86_64"
+          mkdir -p "dist/$name"
+          cmake --install build --prefix "$PWD/dist/$name"
+          tar -czf "$name.tar.gz" -C dist "$name"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: "*.tar.gz"
+          if-no-files-found: error
+
+  macos:
+    name: macOS universal
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: >
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DRYN_WERROR=ON
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Package
+        run: |
+          name="ryn-${RYN_VERSION}-macos-universal"
+          mkdir -p "dist/$name"
+          cmake --install build --prefix "$PWD/dist/$name"
+          file "dist/$name/bin/ryn"
+          tar -czf "$name.tar.gz" -C dist "$name"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal
+          path: "*.tar.gz"
+          if-no-files-found: error
+
+  windows:
+    name: Windows x86_64 (MinGW-w64)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        env:
+          CC: gcc
+        run: ctest --test-dir build --output-on-failure
+      - name: Package
+        shell: pwsh
+        run: |
+          $name = "ryn-$env:RYN_VERSION-windows-x86_64"
+          New-Item -ItemType Directory -Force -Path $name | Out-Null
+          & C:\msys64\mingw64\bin\cmake.exe --install build --prefix "$PWD/$name"
+          Compress-Archive -Path $name -DestinationPath "$name.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: "*.zip"
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: [linux, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Ryn ${{ env.RYN_VERSION }}
+          body: |
+            Ryn ${{ env.RYN_VERSION }} — the first public build of the Ryn compiler.
+
+            Ryn is a small, statically typed language with significant indentation that
+            compiles to C11 and then to native code.
+
+            ## Downloads
+
+            | Platform | Archive |
+            | --- | --- |
+            | Linux x86_64 | `ryn-${{ env.RYN_VERSION }}-linux-x86_64.tar.gz` |
+            | macOS (universal: Apple Silicon + Intel) | `ryn-${{ env.RYN_VERSION }}-macos-universal.tar.gz` |
+            | Windows x86_64 | `ryn-${{ env.RYN_VERSION }}-windows-x86_64.zip` |
+
+            Every archive uses the same layout: `bin/ryn` (`bin\ryn.exe` on Windows),
+            `share/ryn/runtime` for the C runtime, and `share/doc/Ryn` with the docs
+            and examples. Extract it anywhere; the compiler finds the runtime relative
+            to its own executable.
+
+            ## Requirements
+
+            Ryn emits C11 and invokes a C compiler, so a native C toolchain must be
+            installed:
+
+            - **Linux:** GCC or Clang (`cc`).
+            - **macOS:** the Xcode Command Line Tools (`xcode-select --install`).
+            - **Windows:** MinGW-w64 GCC on `PATH` (for example from MSYS2). Use
+              `--cc <path-to-gcc>` if `gcc` is not found automatically.
+
+            ## Quick start
+
+            Linux / macOS:
+
+            ```sh
+            tar -xzf ryn-${{ env.RYN_VERSION }}-linux-x86_64.tar.gz
+            cd "ryn-${{ env.RYN_VERSION }}-linux-x86_64"
+            bin/ryn run share/doc/Ryn/hello.ryn
+            ```
+
+            Windows (PowerShell):
+
+            ```powershell
+            Expand-Archive ryn-${{ env.RYN_VERSION }}-windows-x86_64.zip -DestinationPath .
+            .\ryn-${{ env.RYN_VERSION }}-windows-x86_64\bin\ryn.exe version
+            .\ryn-${{ env.RYN_VERSION }}-windows-x86_64\bin\ryn.exe run `
+              .\ryn-${{ env.RYN_VERSION }}-windows-x86_64\share\doc\Ryn\hello.ryn
+            ```
+
+            ## Notes
+
+            - macOS binaries are not notarized. If Gatekeeper blocks a downloaded
+              binary, remove the quarantine attribute:
+              `xattr -d com.apple.quarantine bin/ryn`.
+            - Windows binaries are built with MinGW-w64; the generated programs also
+              need that GCC toolchain at compile time.
+            - Known language limitations (slices, generics, array parameters) are
+              documented in `README.md` and `docs/`.
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
