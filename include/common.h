@@ -124,8 +124,14 @@ char *ryn_path_without_ext(const char *path);
 bool ryn_path_has_ext(const char *path, const char *ext);
 /* Creates a fresh temporary directory. Returns malloc'd path or NULL. */
 char *ryn_make_temp_dir(void);
+/* Recursive removal of a file or directory tree. Missing paths are ignored. */
+void ryn_remove_tree(const char *path);
 /* Best effort recursive removal of a directory created by ryn_make_temp_dir. */
 void ryn_remove_temp_dir(const char *path);
+
+/* Runs argv[0] with argv and waits for it. Returns the exit code, or -1 when
+ * the process could not be started. */
+int ryn_spawn_process(char *const argv[]);
 
 /* Turns an arbitrary string into a valid identifier fragment. */
 char *ryn_identifier_from(const char *s);

@@ -47,6 +47,7 @@ set(RYN_CORE_SOURCES
     src/ir.c
     src/codegen.c
     src/compiler.c
+    src/package.c
 )
 
 add_library(ryn_core STATIC ${RYN_CORE_SOURCES})
@@ -59,9 +60,13 @@ add_executable(ryn src/main.c)
 target_link_libraries(ryn PRIVATE ryn_core)
 ryn_enable_warnings(ryn)
 
+add_executable(rynx src/rynx.c)
+target_link_libraries(rynx PRIVATE ryn_core)
+ryn_enable_warnings(rynx)
+
 include(GNUInstallDirs)
 
-install(TARGETS ryn RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS ryn rynx RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(DIRECTORY runtime/
         DESTINATION ${CMAKE_INSTALL_DATADIR}/ryn/runtime
         FILES_MATCHING PATTERN "*.h" PATTERN "*.c")
@@ -80,6 +85,7 @@ if(RYN_BUILD_TESTS)
         tests/test_parser.c
         tests/test_sema.c
         tests/test_codegen.c
+        tests/test_package.c
     )
     target_link_libraries(ryn_tests PRIVATE ryn_core)
     target_include_directories(ryn_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
@@ -87,6 +93,7 @@ if(RYN_BUILD_TESTS)
 
     add_test(NAME ryn-unit COMMAND ryn_tests)
     add_test(NAME ryn-version COMMAND ryn version)
+    add_test(NAME rynx-version COMMAND rynx --version)
 
     if(UNIX)
         add_test(NAME ryn-cli
@@ -94,5 +101,9 @@ if(RYN_BUILD_TESTS)
                          $<TARGET_FILE:ryn>
                          ${CMAKE_CURRENT_SOURCE_DIR}/runtime
                          ${CMAKE_CURRENT_SOURCE_DIR}/examples)
+        add_test(NAME rynx-cli
+                 COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_rynx_tests.sh
+                         $<TARGET_FILE:rynx>
+                         $<TARGET_FILE:ryn>)
     endif()
 endif()

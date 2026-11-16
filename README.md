@@ -58,6 +58,7 @@ Requirements:
 - A C17 compiler (GCC 11+ or Clang 12+; MSVC is not a supported host compiler yet)
 - CMake 3.16 or newer
 - A C11 compiler at run time for the generated code (GCC or Clang)
+- `git` (optional; needed for `rynx` git dependencies)
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -68,7 +69,11 @@ cmake --build build
 Plain Makefile-free builds are possible too:
 
 ```sh
-cc -std=c17 -O2 -Iinclude -DRYN_RUNTIME_DIR="\"$PWD/runtime\"" src/*.c -o ryn
+sources="src/util.c src/source.c src/diagnostics.c src/lexer.c src/ast.c src/types.c \
+src/parser.c src/builtins.c src/sema.c src/sema_expr.c src/sema_stmt.c src/ir.c \
+src/codegen.c src/compiler.c src/package.c"
+cc -std=c17 -O2 -Iinclude -DRYN_RUNTIME_DIR="\"$PWD/runtime\"" $sources src/main.c -o ryn
+cc -std=c17 -O2 -Iinclude -DRYN_RUNTIME_DIR="\"$PWD/runtime\"" $sources src/rynx.c -o rynx
 ```
 
 ## Using the compiler
@@ -83,7 +88,7 @@ ryn <command> [options] <file.ryn> [-- program args]
 | `ryn transpile file.ryn` | Emit the generated C11 (`-o file.c`, default `file.c`) |
 | `ryn build file.ryn -o app` | Compile to a native executable |
 | `ryn run file.ryn` | Build in a temporary directory and run |
-| `ryn version` | Print compiler and language versions |
+| `ryn version`, `ryn --version` | Print compiler and language versions |
 | `ryn help` | Show usage |
 
 Useful options:
@@ -103,6 +108,38 @@ I/O failure. `ryn run` exits with the program's own status once the program runs
 The compiler locates the runtime library in this order: `$RYN_RUNTIME_DIR`, a
 `runtime` directory next to the compiler executable (or `../runtime`,
 `../share/ryn/runtime`), and finally the path recorded at build time.
+
+## Using the package manager
+
+`rynx` is the project and dependency manager that ships with the compiler:
+
+```sh
+mkdir demo && cd demo
+rynx init demo
+rynx run
+
+rynx add ../greet          # path dependency
+rynx add https://github.com/example/utils.git --tag v1.0.0
+rynx install               # writes rynx.lock
+rynx list
+```
+
+| Command | What it does |
+| --- | --- |
+| `rynx init [name]` | Create `rynx.toml` and `src/main.ryn` |
+| `rynx add <path\|url>` | Add, validate, and install a path or git dependency |
+| `rynx remove <name>` | Remove a dependency and its installed directory |
+| `rynx install` | Resolve dependencies and write `rynx.lock` |
+| `rynx list` | Show the package and its dependencies |
+| `rynx build`, `rynx run` | Delegate to `ryn` using the package entry point |
+| `rynx clean` | Remove installed dependencies (`.rynx`) |
+| `rynx --version` | Print `rynx 0.1.0 (Ryn v0.1)` |
+
+Manifests are `rynx.toml`; git dependencies are cloned into `.rynx/packages`.
+The Ryn 0.1 compiler can only import the standard modules (`core`, `io`, `math`,
+`strings`, `mem`), so user packages are installed and tracked but not yet
+importable from Ryn source. See [docs/rynx.md](docs/rynx.md) for the manifest
+format, lock file, exit codes, and current limitations.
 
 ## A tour
 
@@ -165,7 +202,9 @@ src/                compiler implementation (C17)
   ir.c              typed linear IR
   codegen.c         C11 backend
   compiler.c        driver (files, toolchain, processes)
-  main.c            command line interface
+  package.c         rynx manifest parsing, validation, and writing
+  main.c            ryn command line interface
+  rynx.c            rynx package manager command line interface
 runtime/            C runtime used by generated programs
 tests/              unit tests and CLI integration tests
 docs/               specification and architecture documents
@@ -180,10 +219,12 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-- `tests/test_lexer.c`, `test_parser.c`, `test_sema.c`, `test_codegen.c` are C unit
-  tests linked against the whole compiler pipeline.
+- `tests/test_lexer.c`, `test_parser.c`, `test_sema.c`, `test_codegen.c` and
+  `test_package.c` are C unit tests linked against the whole compiler library.
 - `tests/run_cli_tests.sh` drives the real `ryn` binary end to end: checks,
   diagnostics, builds, transpilation, execution, exit codes, and every example.
+- `tests/run_rynx_tests.sh` drives `rynx` end to end: version/help, init, add,
+  install, list, remove, run/build, lock files, and error paths.
 
 Warnings are not failures. Diagnostics are rendered as
 `error[E0003]: message`, followed by `file:line:column`, a source excerpt with a
@@ -198,6 +239,7 @@ caret, and an optional note. The full code list is in
 - [Type system](docs/types.md)
 - [Memory model](docs/memory-model.md)
 - [Modules and standard library](docs/modules.md)
+- [Rynx package manager](docs/rynx.md)
 - [Compiler architecture](docs/compiler-architecture.md)
 - [Diagnostics reference](docs/diagnostics.md)
 

@@ -12,11 +12,13 @@
 
 #if defined(_WIN32)
 #  include <direct.h>
+#  include <process.h>
 #  include <windows.h>
 #else
 #  include <dirent.h>
 #  include <sys/stat.h>
 #  include <sys/types.h>
+#  include <sys/wait.h>
 #  include <unistd.h>
 #  include <strings.h>
 #endif
@@ -458,8 +460,12 @@ char *ryn_make_temp_dir(void) {
 #endif
 }
 
-void ryn_remove_temp_dir(const char *path) {
+void ryn_remove_tree(const char *path) {
     if (!path) {
+        return;
+    }
+    if (!ryn_is_directory(path)) {
+        remove(path);
         return;
     }
 #if defined(_WIN32)
@@ -472,7 +478,11 @@ void ryn_remove_temp_dir(const char *path) {
                 continue;
             }
             char *child = ryn_path_join(path, data.cFileName);
-            DeleteFileA(child);
+            if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                ryn_remove_tree(child);
+            } else {
+                DeleteFileA(child);
+            }
             free(child);
         } while (FindNextFileA(handle, &data));
         FindClose(handle);
@@ -488,12 +498,54 @@ void ryn_remove_temp_dir(const char *path) {
                 continue;
             }
             char *child = ryn_path_join(path, entry->d_name);
-            unlink(child);
+            struct stat st;
+            if (lstat(child, &st) == 0 && S_ISDIR(st.st_mode)) {
+                ryn_remove_tree(child);
+            } else {
+                unlink(child);
+            }
             free(child);
         }
         closedir(dir);
     }
     rmdir(path);
+#endif
+}
+
+void ryn_remove_temp_dir(const char *path) {
+    ryn_remove_tree(path);
+}
+
+int ryn_spawn_process(char *const argv[]) {
+#if defined(_WIN32)
+    intptr_t code = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
+    return code < 0 ? -1 : (int)code;
+#else
+    if (!argv || !argv[0]) {
+        return -1;
+    }
+    pid_t pid = fork();
+    if (pid < 0) {
+        return -1;
+    }
+    if (pid == 0) {
+        execvp(argv[0], argv);
+        fprintf(stderr, "ryn: error: cannot execute '%s': %s\n", argv[0], strerror(errno));
+        _exit(127);
+    }
+    int status = 0;
+    while (waitpid(pid, &status, 0) < 0) {
+        if (errno != EINTR) {
+            return -1;
+        }
+    }
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    if (WIFSIGNALED(status)) {
+        return 128 + WTERMSIG(status);
+    }
+    return -1;
 #endif
 }
 

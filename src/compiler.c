@@ -159,37 +159,6 @@ static const char *default_cc(void) {
 /* Process spawning                                                   */
 /* ------------------------------------------------------------------ */
 
-/* Returns the process exit code, or -1 when the program could not be run. */
-static int spawn_process(char *const argv[]) {
-#if defined(_WIN32)
-    intptr_t code = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
-    return code < 0 ? -1 : (int)code;
-#else
-    pid_t pid = fork();
-    if (pid < 0) {
-        return -1;
-    }
-    if (pid == 0) {
-        execvp(argv[0], argv);
-        fprintf(stderr, "ryn: error: cannot execute '%s': %s\n", argv[0], strerror(errno));
-        _exit(127);
-    }
-    int status = 0;
-    while (waitpid(pid, &status, 0) < 0) {
-        if (errno != EINTR) {
-            return -1;
-        }
-    }
-    if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-    }
-    if (WIFSIGNALED(status)) {
-        return 128 + WTERMSIG(status);
-    }
-    return -1;
-#endif
-}
-
 /* ------------------------------------------------------------------ */
 /* Emitting the generated C file                                      */
 /* ------------------------------------------------------------------ */
@@ -294,7 +263,7 @@ static int compile_to_executable(const CompilerOptions *options, Arena *arena, D
     size_t argc = 0;
     char *runtime_paths[RYN_RUNTIME_SOURCE_COUNT] = {0};
     char **argv = build_cc_argv(options, cc, c_path, exe_path, runtime_dir, runtime_paths, &argc);
-    int code = spawn_process(argv);
+    int code = ryn_spawn_process(argv);
     free_cc_argv(argv, runtime_paths);
     if (code < 0) {
         diag_error(diag, no_position(), E_IO, "failed to run the C compiler '%s'", cc);
@@ -470,7 +439,7 @@ int compiler_execute(const CompilerOptions *options) {
                 argv[(size_t)i + 1] = options->program_args[i];
             }
             argv[argc - 1] = NULL;
-            int run_code = spawn_process(argv);
+            int run_code = ryn_spawn_process(argv);
             free(argv);
             if (run_code < 0) {
                 diag_error(&diag, no_position(), E_IO, "failed to start the compiled program");
