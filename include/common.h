@@ -8,13 +8,6 @@
 #ifndef RYN_COMMON_H
 #define RYN_COMMON_H
 
-/* MinGW's default msvcrt printf does not understand C99 length modifiers such
- * as %zu. Use MinGW's ANSI stdio implementation so diagnostics and dumps agree
- * with the other platforms. This must be defined before any system header. */
-#if defined(__MINGW32__) && !defined(__USE_MINGW_ANSI_STDIO)
-#  define __USE_MINGW_ANSI_STDIO 1
-#endif
-
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>

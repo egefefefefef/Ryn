@@ -1375,11 +1375,13 @@ void ir_dump_module(const IrModule *module, FILE *out) {
     if (!module) {
         return;
     }
-    fprintf(out, "; Ryn IR — %zu function%s, %zu string%s\n", module->nfunctions,
-            module->nfunctions == 1 ? "" : "s", module->nstrings,
+    fprintf(out, "; Ryn IR — %llu function%s, %llu string%s\n",
+            (unsigned long long)module->nfunctions,
+            module->nfunctions == 1 ? "" : "s", (unsigned long long)module->nstrings,
             module->nstrings == 1 ? "" : "s");
     for (size_t s = 0; s < module->nstrings; s++) {
-        fprintf(out, "; string #%zu = \"%.*s\"\n", s, (int)module->strings[s].length,
+        fprintf(out, "; string #%llu = \"%.*s\"\n", (unsigned long long)s,
+                (int)module->strings[s].length,
                 module->strings[s].value);
     }
     for (size_t f = 0; f < module->nfunctions; f++) {
@@ -1390,7 +1392,7 @@ void ir_dump_module(const IrModule *module, FILE *out) {
         for (size_t l = 0; l < fn->nlocals; l++) {
             char type_buf[96];
             type_to_string_buf(fn->locals[l].type, type_buf, sizeof(type_buf));
-            fprintf(out, "  local l%zu %s %s%s\n", l, type_buf,
+            fprintf(out, "  local l%llu %s %s%s\n", (unsigned long long)l, type_buf,
                     fn->locals[l].name ? fn->locals[l].name : "?",
                     fn->locals[l].is_param ? " (param)" : "");
         }

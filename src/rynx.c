@@ -395,7 +395,7 @@ static int install_project(const char *root, RynxManifest *manifest) {
         errorf("%s", err);
         return RYNX_EXIT_ERROR;
     }
-    printf("installed %zu dependenc%s\n", manifest->deps.len,
+    printf("installed %llu dependenc%s\n", (unsigned long long)manifest->deps.len,
            manifest->deps.len == 1 ? "y" : "ies");
     return RYNX_EXIT_OK;
 }

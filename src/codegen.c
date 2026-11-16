@@ -281,7 +281,8 @@ static const char *local_c_name(Codegen *cg, const IrFunction *fn, size_t index)
     const char *sanitized = sanitize_identifier(cg->arena, local->name);
     StrBuf sb;
     sb_init(&sb);
-    sb_appendf(&sb, "%c%zu_%s", local->is_param ? 'p' : 'v', index, sanitized);
+    sb_appendf(&sb, "%c%llu_%s", local->is_param ? 'p' : 'v', (unsigned long long)index,
+               sanitized);
     const char *result = arena_strdup(cg->arena, sb.data);
     sb_free(&sb);
     return result;
@@ -378,7 +379,8 @@ static const char *fn_type_name(Codegen *cg, Type *type) {
     }
     FnTypeEntry *entry = &cg->fn_types[cg->nfn_types];
     entry->type = type;
-    snprintf(entry->name, sizeof(entry->name), "ryn_fn_%zu", cg->nfn_types);
+    snprintf(entry->name, sizeof(entry->name), "ryn_fn_%llu",
+                 (unsigned long long)cg->nfn_types);
     cg->nfn_types++;
     return entry->name;
 }
@@ -1017,7 +1019,7 @@ bool codegen_emit(FILE *out, Arena *arena, Diagnostics *diag, AstProgram *progra
 
     /* String literals. */
     for (size_t i = 0; i < module->nstrings; i++) {
-        fprintf(out, "static const char ryn_str_%zu[] = ", i);
+        fprintf(out, "static const char ryn_str_%llu[] = ", (unsigned long long)i);
         emit_c_string(out, module->strings[i].value, module->strings[i].length);
         fputs(";\n", out);
     }
