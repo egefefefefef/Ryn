@@ -13,6 +13,7 @@ strings through the stages:
 | `test_parser.c` | Declarations, precedence, statements, literals, recovery |
 | `test_sema.c` | Valid programs, type errors, mutability, flow, main rules, warnings |
 | `test_codegen.c` | Generated C fragments for calls, structs, arrays, control flow, division guards, function values |
+| `test_package.c` | `rynx.toml` parsing, validation, defaults, round-trips, dependency editing, name rules |
 
 Run them directly:
 
@@ -33,8 +34,12 @@ AddressSanitizer.
 
 ## CLI integration tests
 
+`run_rynx_tests.sh <rynx-binary> <ryn-binary>` exercises the package manager:
+`--version`/`version`, help, `init`, `add`, `install`, `list`, `remove`,
+`run`/`build`, lock files, and error paths.
+
 `run_cli_tests.sh <ryn-binary> <runtime-dir> [examples-dir]` exercises the real
-binary:
+compiler binary:
 
 - `version`, `help`, unknown command/option, missing input;
 - `check` success and failure, diagnostics codes and carets;
@@ -45,11 +50,12 @@ binary:
   result;
 - every program in `examples/`, including stdin-driven `io_sum.ryn`.
 
-The CMake test `ryn-cli` wires this up automatically on UNIX systems:
+The CMake tests `ryn-cli` and `rynx-cli` wire these up automatically on UNIX
+systems:
 
 ```sh
 cmake --build build
-ctest --test-dir build -R ryn-cli --output-on-failure
+ctest --test-dir build -R 'ryn(cli|x-cli)' --output-on-failure
 ```
 
 ## Adding a test
@@ -58,8 +64,8 @@ ctest --test-dir build -R ryn-cli --output-on-failure
    entry point.
 2. Use `TEST_ASSERT`, `TEST_ASSERT_MSG`, `TEST_ASSERT_INT`, `TEST_ASSERT_STR`,
    and `tc_has_code` for diagnostics.
-3. For end-to-end behaviour, add a case to `run_cli_tests.sh` with
-   `check_status`, `check_output` or `check_contains`.
+3. For end-to-end behaviour, add a case to `run_cli_tests.sh` or
+   `run_rynx_tests.sh` with `check_status`, `check_output` or `check_contains`.
 
 A feature is complete only when both a unit test and a CLI example exercise it.
 

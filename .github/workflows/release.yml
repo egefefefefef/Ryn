@@ -198,7 +198,8 @@ jobs:
         with:
           name: Ryn ${{ env.RYN_VERSION }}
           body: |
-            Ryn ${{ env.RYN_VERSION }} — the first public build of the Ryn compiler.
+            Ryn ${{ env.RYN_VERSION }} — the first public build of the Ryn compiler
+            and its package manager, `rynx`.
 
             Ryn is a small, statically typed language with significant indentation that
             compiles to C11 and then to native code.
@@ -211,10 +212,14 @@ jobs:
             | macOS (universal: Apple Silicon + Intel) | `ryn-${{ env.RYN_VERSION }}-macos-universal.tar.gz` |
             | Windows x86_64 | `ryn-${{ env.RYN_VERSION }}-windows-x86_64.zip` |
 
-            Every archive uses the same layout: `bin/ryn` (`bin\ryn.exe` on Windows),
-            `share/ryn/runtime` for the C runtime, and `share/doc/Ryn` with the docs
-            and examples. Extract it anywhere; the compiler finds the runtime relative
-            to its own executable.
+            Every archive uses the same layout:
+
+            - `bin/ryn` and `bin/rynx` (`bin\ryn.exe`, `bin\rynx.exe` on Windows);
+            - `share/ryn/runtime` for the C runtime;
+            - `share/doc/Ryn` with the docs and examples.
+
+            Extract it anywhere; the compiler finds the runtime relative to its own
+            executable, and `rynx` finds `ryn` next to itself.
 
             ## Requirements
 
@@ -226,14 +231,26 @@ jobs:
             - **Windows:** MinGW-w64 GCC on `PATH` (for example from MSYS2). Use
               `--cc <path-to-gcc>` if `gcc` is not found automatically.
 
+            `rynx` git dependencies also need a `git` executable.
+
             ## Quick start
 
-            Linux / macOS:
+            Linux:
 
             ```sh
             tar -xzf ryn-${{ env.RYN_VERSION }}-linux-x86_64.tar.gz
-            cd "ryn-${{ env.RYN_VERSION }}-linux-x86_64"
+            cd ryn-${{ env.RYN_VERSION }}-linux-x86_64
             bin/ryn run share/doc/Ryn/hello.ryn
+            bin/rynx --version
+            ```
+
+            macOS (Apple Silicon or Intel):
+
+            ```sh
+            tar -xzf ryn-${{ env.RYN_VERSION }}-macos-universal.tar.gz
+            cd ryn-${{ env.RYN_VERSION }}-macos-universal
+            bin/ryn run share/doc/Ryn/hello.ryn
+            bin/rynx --version
             ```
 
             Windows (PowerShell):
@@ -241,6 +258,7 @@ jobs:
             ```powershell
             Expand-Archive ryn-${{ env.RYN_VERSION }}-windows-x86_64.zip -DestinationPath .
             .\ryn-${{ env.RYN_VERSION }}-windows-x86_64\bin\ryn.exe version
+            .\ryn-${{ env.RYN_VERSION }}-windows-x86_64\bin\rynx.exe --version
             .\ryn-${{ env.RYN_VERSION }}-windows-x86_64\bin\ryn.exe run `
               .\ryn-${{ env.RYN_VERSION }}-windows-x86_64\share\doc\Ryn\hello.ryn
             ```
@@ -252,6 +270,9 @@ jobs:
               `xattr -d com.apple.quarantine bin/ryn`.
             - Windows binaries are built with MinGW-w64; the generated programs also
               need that GCC toolchain at compile time.
+            - `rynx` manages package manifests, path/git dependencies, and lock files.
+              The Ryn 0.1 compiler still imports only the standard modules, so
+              dependencies are not importable from Ryn source yet; see `docs/rynx.md`.
             - Known language limitations (slices, generics, array parameters) are
               documented in `README.md` and `docs/`.
           files: |

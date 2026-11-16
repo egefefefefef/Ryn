@@ -48,7 +48,9 @@ component that touches the filesystem or spawns processes.
 | `include/ir.h`, `src/ir.c` | IR data model, lowering, textual dumper |
 | `include/codegen.h`, `src/codegen.c` | C11 backend |
 | `include/compiler.h`, `src/compiler.c` | Driver: orchestration, temp files, cc invocation |
-| `src/main.c` | Command line parsing and help |
+| `include/package.h`, `src/package.c` | `rynx.toml` model: parsing, validation, writing, lock files |
+| `src/main.c` | `ryn` command line parsing and help |
+| `src/rynx.c` | `rynx` package manager commands and dependency installation |
 | `runtime/` | C runtime linked into generated programs |
 | `tests/` | Unit tests and CLI integration tests |
 

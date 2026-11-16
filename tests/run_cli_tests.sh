@@ -134,6 +134,14 @@ RYN
 check_status "version exits 0" 0 $?
 check_contains "version prints the compiler version" "ryn 0.1.0" "$TMP/version.txt"
 
+"$RYN" --version > "$TMP/version_flag.txt" 2>&1
+check_status "--version exits 0" 0 $?
+check_contains "--version prints the compiler version" "ryn 0.1.0" "$TMP/version_flag.txt"
+
+"$RYN" -V > "$TMP/version_short.txt" 2>&1
+check_status "-V exits 0" 0 $?
+check_contains "-V prints the compiler version" "ryn 0.1.0" "$TMP/version_short.txt"
+
 "$RYN" help > "$TMP/help.txt" 2>&1
 check_status "help exits 0" 0 $?
 check_contains "help lists build" "build" "$TMP/help.txt"
