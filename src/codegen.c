@@ -961,12 +961,6 @@ bool codegen_emit(FILE *out, Arena *arena, Diagnostics *diag, AstProgram *progra
           out);
 
     /* Forward declarations of named types. */
-    size_t struct_count = 0;
-    for (size_t i = 0; i < program->decls.len; i++) {
-        if (program->decls.items[i]->kind == AST_STRUCT_DECL) {
-            struct_count++;
-        }
-    }
     for (size_t i = 0; i < program->decls.len; i++) {
         AstDecl *decl = program->decls.items[i];
         if (decl->kind == AST_STRUCT_DECL) {
