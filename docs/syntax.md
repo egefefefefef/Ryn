@@ -152,7 +152,7 @@ mutable[2] = 30
 ```
 
 Constant out-of-bounds indices are compile-time errors. Runtime bounds checks for
-arrays are not generated in 0.1 — see [memory-model.md](memory-model.md).
+arrays are not generated in 0.2 — see [memory-model.md](memory-model.md).
 
 ## Pointers
 
@@ -181,7 +181,7 @@ let p = &v
 p.x = 5.0
 ```
 
-Pointer arithmetic is not part of 0.1; use indexing (`p[i]`).
+Pointer arithmetic is not part of 0.2; use indexing (`p[i]`).
 
 ## Strings
 

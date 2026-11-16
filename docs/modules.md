@@ -6,8 +6,8 @@
 import math
 ```
 
-An import binds a built-in module name in the current file. Members are used
-with a qualified name:
+An import binds a module name in the current file. Members are used with a
+qualified name:
 
 ```ryn
 println(math.sqrt(2.0))
@@ -15,10 +15,119 @@ println(math.PI)
 ```
 
 - Imports must precede all other declarations (`E0033`).
-- Only the five built-in modules below exist in 0.1; `import foo` for anything
-  else is `E0026`.
-- There are no file-based modules or packages yet.
-- Importing the same module twice is `E0008` (duplicate declaration).
+- A module is either one of the five built-in modules below or a user module
+  written in Ryn. An import that cannot be resolved is `E0026`.
+- Importing the same module twice in one file is `E0008` (duplicate declaration).
+- Import cycles are rejected with `E0040`.
+- Only top-level names can be imported; there are no nested module paths such as
+  `import foo.bar`.
+
+## User modules
+
+A program may be split across files. Importing a name that is not a built-in
+module loads another `.ryn` file and makes its top-level functions, structs and
+enums available through the import alias:
+
+```ryn
+# geometry.ryn
+import math
+
+struct Point:
+    x: i32
+    y: i32
+
+fn length(p: Point) -> f64:
+    return math.sqrt((p.x * p.x + p.y * p.y) as f64)
+```
+
+```ryn
+# main.ryn
+import geometry
+
+fn main() -> i32:
+    let p = geometry.Point { x: 3, y: 4 }
+    println(geometry.length(p))
+    return 0
+```
+
+Qualified names are used in every position: expressions (`geometry.length`),
+types (`geometry.Point`), enum variants (`geometry.Color.Red`) and struct
+literals (`geometry.Point { ... }`).
+
+### Resolution order
+
+For `import foo`, the compiler looks for a module file in this order:
+
+1. `foo.ryn` next to the importing file;
+2. `foo/mod.ryn` next to the importing file;
+3. a `path` dependency named `foo` in the `rynx.toml` closest to the importing
+   file;
+4. `<name>.ryn` and `<name>/mod.ryn` in each `--module-path` directory, in the
+   order the flags were given;
+5. the same layouts in directories listed in `$RYN_MODULE_PATH` (split by `:`
+   on Unix and `;` on Windows);
+6. `.rynx/packages/foo`, found by walking up from the entry file to the project
+   root.
+
+Built-in modules always win: a local `math.ryn` cannot shadow `import math`.
+A source file may only be imported under one alias per build; importing the same
+file as both `foo` and `bar` is `E0008`. Different files may use the same alias
+in different modules, because each import is qualified internally.
+
+A package directory may contain the module in any of these locations. The first
+one that exists is used:
+
+```
+src/lib.ryn
+src/<package>.ryn
+src/mod.ryn
+<package>.ryn
+lib.ryn
+mod.ryn
+entry = "..." from rynx.toml
+```
+
+`rynx build` and `rynx run` pass the project's `.rynx/packages` directory to the
+compiler automatically. `path` dependencies are resolved through the manifest of
+the importing package, so they can be imported without copying.
+
+### Visibility and name conflicts
+
+Every top-level declaration in a module is public in Ryn 0.2. Declarations keep
+their names inside the module but are namespaced by the import alias across
+modules, so two packages may both define `Point` or `length`. Within a module,
+members of the same module are used without a prefix; members of another module
+always require the alias.
+
+Local variables and parameters shadow top-level names, including import aliases.
+A local declaration is never rewritten to a module member.
+
+All modules are compiled into one program. Only the entry file may define `main`;
+a `main` in an imported module is renamed like any other declaration.
+
+### Example package layout
+
+```
+demo/
+  rynx.toml
+  src/main.ryn          import utils
+  .rynx/packages/utils/
+    rynx.toml           entry = "src/lib.ryn"
+    src/lib.ryn
+```
+
+```ryn
+# src/main.ryn
+import utils
+
+fn main() -> i32:
+    println(utils.greeting())
+    return 0
+```
+
+---
+
+## Built-in modules
 
 The `core` module is the same table as the global namespace, so the following
 are equivalent:
@@ -76,7 +185,7 @@ contain exactly one integer. Two numbers on one line are rejected; call
 
 `io.print` and `io.println` are also available and behave like the globals.
 
-In 0.1 there is no file I/O; only standard input/output are exposed.
+There is no file I/O; only standard input/output are exposed.
 
 ---
 

@@ -453,7 +453,8 @@ static void scan_char(Lexer *l, SourcePos start) {
         diag_error(l->diag, start, E_SYNTAX, "unterminated char literal");
     } else if (sb.len != 1) {
         diag_error(l->diag, start, E_SYNTAX,
-                   "char literal must contain exactly one byte (found %zu)", sb.len);
+                   "char literal must contain exactly one byte (found %llu)",
+                   (unsigned long long)sb.len);
     }
     size_t length = l->pos > content_start + 1 ? l->pos - content_start - 1 : 0;
     Token *token = push_token(l, TOK_CHAR, start, content_start, length);

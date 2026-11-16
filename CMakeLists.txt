@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(Ryn
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "The Ryn programming language compiler"
     LANGUAGES C)
 
@@ -40,6 +40,7 @@ set(RYN_CORE_SOURCES
     src/ast.c
     src/types.c
     src/parser.c
+    src/module.c
     src/builtins.c
     src/sema.c
     src/sema_expr.c
@@ -86,6 +87,7 @@ if(RYN_BUILD_TESTS)
         tests/test_sema.c
         tests/test_codegen.c
         tests/test_package.c
+        tests/test_module.c
     )
     target_link_libraries(ryn_tests PRIVATE ryn_core)
     target_include_directories(ryn_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)

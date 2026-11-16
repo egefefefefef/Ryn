@@ -198,11 +198,24 @@ jobs:
         with:
           name: Ryn ${{ env.RYN_VERSION }}
           body: |
-            Ryn ${{ env.RYN_VERSION }} — the first public build of the Ryn compiler
-            and its package manager, `rynx`.
+            Ryn ${{ env.RYN_VERSION }} — the Ryn compiler, standard library and
+            package manager, `rynx`.
 
             Ryn is a small, statically typed language with significant indentation that
             compiles to C11 and then to native code.
+
+            ## New in 0.2
+
+            - **User modules.** `import geometry` loads `geometry.ryn` next to the
+              importing file (or `geometry/mod.ryn`) and exposes its top-level
+              functions, structs and enums as `geometry.name`.
+            - **Package imports.** Modules are resolved from `.rynx/packages`, from
+              `--module-path` directories and from path dependencies declared in
+              `rynx.toml`. `rynx build` and `rynx run` pass the package directory
+              automatically.
+            - **Namespacing and diagnostics.** Duplicate names across packages are
+              allowed, imports are loaded recursively, and circular imports are
+              rejected with `E0040`.
 
             ## Downloads
 
@@ -271,8 +284,8 @@ jobs:
             - Windows binaries are built with MinGW-w64; the generated programs also
               need that GCC toolchain at compile time.
             - `rynx` manages package manifests, path/git dependencies, and lock files.
-              The Ryn 0.1 compiler still imports only the standard modules, so
-              dependencies are not importable from Ryn source yet; see `docs/rynx.md`.
+              Ryn 0.2 programs can import user modules, `--module-path` directories,
+              and packages installed under `.rynx/packages`; see `docs/modules.md`.
             - Known language limitations (slices, generics, array parameters) are
               documented in `README.md` and `docs/`.
           files: |

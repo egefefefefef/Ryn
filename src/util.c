@@ -1,5 +1,10 @@
 #if !defined(_WIN32)
-#  define _POSIX_C_SOURCE 200809L
+#  ifndef _POSIX_C_SOURCE
+#    define _POSIX_C_SOURCE 200809L
+#  endif
+#  ifndef _XOPEN_SOURCE
+#    define _XOPEN_SOURCE 700
+#  endif
 #endif
 #if defined(__APPLE__)
 #  define _DARWIN_C_SOURCE 1
@@ -338,6 +343,115 @@ char *ryn_path_join(const char *a, const char *b) {
     return out;
 }
 
+char *ryn_current_dir(void) {
+    size_t size = 512;
+    for (;;) {
+        char *buffer = (char *)malloc(size);
+        if (!buffer) {
+            return NULL;
+        }
+#if defined(_WIN32)
+        if (_getcwd(buffer, (int)size)) {
+            return buffer;
+        }
+#else
+        if (getcwd(buffer, size)) {
+            return buffer;
+        }
+#endif
+        free(buffer);
+        if (errno != ERANGE) {
+            return NULL;
+        }
+        size *= 2;
+    }
+}
+
+char *ryn_path_canonical(const char *path) {
+    if (!path || !*path) {
+        return NULL;
+    }
+#if defined(_WIN32)
+    char *full = _fullpath(NULL, path, 0);
+    if (full) {
+        return full;
+    }
+#else
+    char *resolved = realpath(path, NULL);
+    if (resolved) {
+        return resolved;
+    }
+#endif
+    char *cwd = ryn_current_dir();
+    if (!cwd) {
+        return NULL;
+    }
+    char *absolute;
+    if (is_sep(path[0]) || (path[0] && path[1] == ':' && is_sep(path[2]))) {
+        absolute = ryn_strdup(path);
+    } else {
+        absolute = ryn_path_join(cwd, path);
+    }
+    free(cwd);
+    if (!absolute) {
+        return NULL;
+    }
+
+    /* Lexically remove "." and ".." components. */
+    size_t len = strlen(absolute);
+    char *out = (char *)malloc(len + 2);
+    if (!out) {
+        free(absolute);
+        return NULL;
+    }
+    size_t out_len = 0;
+    size_t i = 0;
+    if (is_sep(absolute[0])) {
+        out[out_len++] = '/';
+        i = 1;
+    }
+    while (i <= len) {
+        size_t start = i;
+        while (i < len && !is_sep(absolute[i])) {
+            i++;
+        }
+        size_t part_len = i - start;
+        if (part_len == 0) {
+            if (i >= len) {
+                break;
+            }
+            i++;
+            continue;
+        }
+        if (part_len == 1 && absolute[start] == '.') {
+            /* skip */
+        } else if (part_len == 2 && absolute[start] == '.' &&
+                   absolute[start + 1] == '.') {
+            while (out_len > 0 && out[out_len - 1] == '/') {
+                out_len--;
+            }
+            while (out_len > 0 && out[out_len - 1] != '/') {
+                out_len--;
+            }
+        } else {
+            if (out_len > 0 && out[out_len - 1] != '/') {
+                out[out_len++] = '/';
+            }
+            memcpy(out + out_len, absolute + start, part_len);
+            out_len += part_len;
+        }
+        if (i < len && is_sep(absolute[i])) {
+            i++;
+        }
+    }
+    if (out_len == 0) {
+        out[out_len++] = '.';
+    }
+    out[out_len] = '\0';
+    free(absolute);
+    return out;
+}
+
 char *ryn_path_dirname(const char *path) {
     if (!path || !*path) {
         return ryn_strdup(".");
@@ -551,25 +665,35 @@ int ryn_spawn_process(char *const argv[]) {
 
 char *ryn_identifier_from(const char *s) {
     size_t len = s ? strlen(s) : 0;
-    char *out = (char *)malloc(len + 2);
+    char *out = (char *)malloc(len * 4 + 3);
     if (!out) {
         fprintf(stderr, "ryn: out of memory\n");
         abort();
     }
     size_t pos = 0;
-    if (len == 0) {
-        out[pos++] = '_';
-    }
     for (size_t i = 0; i < len; i++) {
         unsigned char c = (unsigned char)s[i];
-        if (isalnum(c) || c == '_') {
+        if (isalnum(c)) {
             out[pos++] = (char)c;
-        } else {
+        } else if (c == '_') {
+            /* Escape underscores so qualified names are unambiguous:
+             * a.b_c and a_b.c must not map to the same C symbol. */
             out[pos++] = '_';
+            out[pos++] = '_';
+        } else if (c == '.') {
+            out[pos++] = '_';
+            out[pos++] = 'd';
+            out[pos++] = '_';
+        } else {
+            static const char HEX[] = "0123456789abcdef";
+            out[pos++] = '_';
+            out[pos++] = 'x';
+            out[pos++] = HEX[(c >> 4) & 0xf];
+            out[pos++] = HEX[c & 0xf];
         }
     }
     out[pos] = '\0';
-    if (pos > 0 && isdigit((unsigned char)out[0])) {
+    if (pos == 0 || isdigit((unsigned char)out[0])) {
         memmove(out + 1, out, pos + 1);
         out[0] = '_';
     }

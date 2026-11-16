@@ -150,10 +150,10 @@ static AstDecl *parse_declaration(Parser *p);
 /* ------------------------------------------------------------------ */
 
 /* Skips a `<...>` parameter list after a declaration name, reporting one
- * clear diagnostic. Generics are on the roadmap but not part of Ryn 0.1. */
+ * clear diagnostic. Generics are on the roadmap but not part of Ryn 0.2. */
 static void skip_generic_parameters(Parser *p) {
     error_at(p, peek(p), E_UNSUPPORTED,
-             "generic parameters are not implemented in Ryn 0.1; use concrete types");
+             "generic parameters are not implemented in Ryn 0.2; use concrete types");
     int depth = 0;
     while (!check(p, TOK_EOF)) {
         if (check(p, TOK_LT)) {
@@ -184,7 +184,7 @@ static AstType *parse_type(Parser *p) {
     if (match(p, TOK_LBRACKET)) {
         if (check(p, TOK_RBRACKET)) {
             error_at(p, peek(p), E_UNSUPPORTED,
-                     "slice types are not implemented in Ryn 0.1; use '[T; N]' or 'ptr<T>'");
+                     "slice types are not implemented in Ryn 0.2; use '[T; N]' or 'ptr<T>'");
             advance(p);
             (void)parse_type(p);
             return ast_type_name(p->arena, pos, "<error>");
@@ -261,7 +261,23 @@ static AstType *parse_type(Parser *p) {
         return ast_type_name(p->arena, pos, name);
     }
     if (match(p, TOK_IDENT)) {
-        return ast_type_name(p->arena, pos, identifier_text(p, previous(p)));
+        const char *name = identifier_text(p, previous(p));
+        if (check(p, TOK_DOT)) {
+            StrBuf sb;
+            sb_init(&sb);
+            sb_append(&sb, name);
+            while (match(p, TOK_DOT)) {
+                Token *part = expect(p, TOK_IDENT, "a type name after '.'");
+                if (!part) {
+                    break;
+                }
+                sb_append_char(&sb, '.');
+                sb_append_n(&sb, part->lexeme, (size_t)part->length);
+            }
+            name = arena_strdup(p->arena, sb.data);
+            sb_free(&sb);
+        }
+        return ast_type_name(p->arena, pos, name);
     }
     char found[128];
     token_describe(token, found, sizeof(found));
@@ -350,9 +366,24 @@ static AstExpr *parse_primary(Parser *p) {
         return literal;
     }
     case TOK_IDENT: {
+        /* A struct literal may be qualified (`module.Type { ... }`). Scan the
+         * dotted path first and only commit when it is followed by '{';
+         * otherwise rewind so the postfix parser handles `a.b` access. */
+        size_t start = p->index;
+        StrBuf path;
+        sb_init(&path);
+        sb_append_n(&path, token->lexeme, (size_t)token->length);
         advance(p);
-        const char *name = identifier_text(p, token);
+        while (check(p, TOK_DOT) && p->index + 1 < p->tokens->len &&
+               p->tokens->items[p->index + 1].kind == TOK_IDENT) {
+            advance(p);
+            Token *part = advance(p);
+            sb_append_char(&path, '.');
+            sb_append_n(&path, part->lexeme, (size_t)part->length);
+        }
         if (check(p, TOK_LBRACE)) {
+            const char *name = arena_strdup(p->arena, path.data);
+            sb_free(&path);
             /* Struct literal: Name { field: value, ... } */
             advance(p);
             AstStringVec names;
@@ -392,7 +423,10 @@ static AstExpr *parse_primary(Parser *p) {
             AstExprPtrVec_free(&values);
             return expr;
         }
-        return ast_ident(p->arena, pos, name);
+        sb_free(&path);
+        p->index = start;
+        advance(p);
+        return ast_ident(p->arena, pos, identifier_text(p, token));
     }
     default:
         break;

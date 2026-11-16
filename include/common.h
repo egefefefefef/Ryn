@@ -118,6 +118,11 @@ bool ryn_is_directory(const char *path);
 bool ryn_make_dir(const char *path);
 char *ryn_getenv(const char *name); /* malloc'd copy or NULL */
 char *ryn_path_join(const char *a, const char *b);
+/* Absolute, normalized path. Falls back to a lexical absolute path when the
+ * file does not exist. Returns a malloc'd string or NULL. */
+char *ryn_path_canonical(const char *path);
+/* Current working directory as a malloc'd string, or NULL. */
+char *ryn_current_dir(void);
 char *ryn_path_dirname(const char *path);
 char *ryn_path_basename(const char *path);
 char *ryn_path_without_ext(const char *path);

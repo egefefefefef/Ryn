@@ -723,7 +723,7 @@ static void check_binary(Sema *sema, AstBinary *binary, Type *expected, ExprValu
     if (lhs.type->kind == TY_PTR || rhs.type->kind == TY_PTR) {
         sema_error_note(sema, binary->base.pos, 1, E_BAD_OPERATOR,
                         "index a pointer with p[i] or use the mem module",
-                        "pointer arithmetic is not supported in Ryn 0.1");
+                        "pointer arithmetic is not supported in Ryn 0.2");
         set_value(out, prim(sema, TY_ERROR));
         return;
     }
@@ -1127,8 +1127,8 @@ static void check_array_literal(Sema *sema, AstArrayLiteral *literal, Type *expe
     }
     if (expected_len >= 0 && expected_len != (int64_t)literal->count) {
         sema_error(sema, literal->base.pos, 1, E_TYPE_MISMATCH,
-                   "array literal has %zu elements but the type expects %lld", literal->count,
-                   (long long)expected_len);
+                   "array literal has %llu elements but the type expects %lld",
+                   (unsigned long long)literal->count, (long long)expected_len);
     }
     set_value(out, type_array(sema->arena, elem_expected, (int64_t)literal->count));
 }
@@ -1197,8 +1197,9 @@ static void report_arg_count(Sema *sema, AstCall *call, FunctionInfo *fn) {
     char note[320];
     snprintf(note, sizeof(note), "function signature is: %s", signature);
     sema_error_note(sema, call->base.pos, 1, E_ARG_COUNT,
-                    note, "function '%s' expects %zu argument%s but %zu %s given", fn->name,
-                    fn->nparams, fn->nparams == 1 ? "" : "s", call->argc,
+                    note, "function '%s' expects %llu argument%s but %llu %s given",
+                    fn->name, (unsigned long long)fn->nparams,
+                    fn->nparams == 1 ? "" : "s", (unsigned long long)call->argc,
                     call->argc == 1 ? "was" : "were");
 }
 
@@ -1209,8 +1210,9 @@ static void report_builtin_arg_count(Sema *sema, AstCall *call, const BuiltinFn 
     char note[320];
     snprintf(note, sizeof(note), "signature is: %s", signature);
     sema_error_note(sema, call->base.pos, 1, E_ARG_COUNT, note,
-                    "'%s' expects %zu argument%s but %zu %s given", display_name, fn->nparams,
-                    fn->nparams == 1 ? "" : "s", call->argc, call->argc == 1 ? "was" : "were");
+                    "'%s' expects %llu argument%s but %llu %s given", display_name,
+                    (unsigned long long)fn->nparams, fn->nparams == 1 ? "" : "s",
+                    (unsigned long long)call->argc, call->argc == 1 ? "was" : "were");
 }
 
 static void check_builtin_call(Sema *sema, AstCall *call, const BuiltinFn *candidates[],
@@ -1332,10 +1334,12 @@ static void check_call(Sema *sema, AstCall *call, Type *expected, ExprValue *out
             Type *fn_type = symbol->type;
             if (call->argc != fn_type->as.fn.nparams) {
                 char note[256];
-                snprintf(note, sizeof(note), "this function value expects %zu argument%s",
-                         fn_type->as.fn.nparams, fn_type->as.fn.nparams == 1 ? "" : "s");
+                snprintf(note, sizeof(note), "this function value expects %llu argument%s",
+                         (unsigned long long)fn_type->as.fn.nparams,
+                         fn_type->as.fn.nparams == 1 ? "" : "s");
                 sema_error_note(sema, call->base.pos, 1, E_ARG_COUNT, note,
-                                "called with %zu argument%s", call->argc,
+                                "called with %llu argument%s",
+                                (unsigned long long)call->argc,
                                 call->argc == 1 ? "" : "s");
                 set_value(out, fn_type->as.fn.ret);
                 return;
@@ -1419,8 +1423,9 @@ static void check_call(Sema *sema, AstCall *call, Type *expected, ExprValue *out
         Type *fn_type = callee_value.type;
         if (call->argc != fn_type->as.fn.nparams) {
             sema_error(sema, call->base.pos, 1, E_ARG_COUNT,
-                       "function value expects %zu arguments but %zu were given",
-                       fn_type->as.fn.nparams, call->argc);
+                       "function value expects %llu arguments but %llu were given",
+                       (unsigned long long)fn_type->as.fn.nparams,
+                       (unsigned long long)call->argc);
             set_value(out, fn_type->as.fn.ret);
             return;
         }

@@ -86,9 +86,10 @@ linking succeed.
 | E0034 | no input | No input file supplied |
 | E0035 | out of range | Constant index, shift count, array length or literal out of range |
 | E0036 | static init | *Reserved* |
-| E0037 | unsupported | Recognized syntax or construct not implemented in 0.1 |
+| E0037 | unsupported | Recognized syntax or construct not implemented in 0.2 |
 | E0038 | I/O | Cannot read/write a file, cannot run the C compiler |
 | E0039 | internal | *Reserved for internal compiler errors* |
+| E0040 | import cycle | The import graph contains a cycle |
 
 Codes marked reserved are defined for forward compatibility and are not
 currently emitted.

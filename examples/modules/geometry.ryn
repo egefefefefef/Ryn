@@ -1,0 +1,14 @@
+# Modules can import other modules and the standard library.
+import math
+
+struct Point:
+    x: i32
+    y: i32
+
+fn distance(p: Point) -> f64:
+    return math.sqrt((p.x * p.x + p.y * p.y) as f64)
+
+fn describe(p: Point) -> str:
+    if p.x == 0 and p.y == 0:
+        return "origin"
+    return "point"

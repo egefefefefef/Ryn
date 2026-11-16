@@ -9,8 +9,7 @@
 #include "codegen.h"
 #include "diagnostics.h"
 #include "ir.h"
-#include "lexer.h"
-#include "parser.h"
+#include "module.h"
 #include "sema.h"
 #include "source.h"
 #include "types.h"
@@ -297,8 +296,6 @@ int compiler_execute(const CompilerOptions *options) {
 #endif
 
     int result = RYN_EXIT_OK;
-    Lexer lexer;
-    lexer_init(&lexer, &arena, &diag, &sm);
     Sema sema;
     bool sema_ready = false;
     IrModule *module = NULL;
@@ -323,26 +320,14 @@ int compiler_execute(const CompilerOptions *options) {
         goto finish;
     }
 
-    char err[512] = {0};
-    SourceFile *file = sm_load_file(&sm, options->input_path, err, sizeof(err));
-    if (!file) {
-        diag_error(&diag, no_position(), E_IO, "cannot read '%s': %s", options->input_path, err);
+    ModuleOptions module_options;
+    module_options.search_paths = options->module_paths;
+    module_options.nsearch_paths = options->nmodule_paths;
+    if (!modules_load_program(&arena, &diag, &sm, options->input_path, &module_options,
+                              options->dump_tokens, &program)) {
         result = RYN_EXIT_COMPILE_ERROR;
         goto finish;
     }
-
-    bool lexed = lexer_lex(&lexer, file);
-    if (options->dump_tokens) {
-        lexer_dump_tokens(&lexer.tokens, stdout);
-    }
-    if (!lexed || diag.error_count > 0) {
-        result = RYN_EXIT_COMPILE_ERROR;
-        goto finish;
-    }
-
-    Parser parser;
-    parser_init(&parser, &arena, &diag, &sm, &lexer.tokens);
-    program = parser_parse_program(&parser, file);
     if (options->dump_ast && program) {
         ast_dump_program(program, stdout);
     }
@@ -472,7 +457,6 @@ finish:
     if (sema_ready) {
         sema_free(&sema);
     }
-    lexer_free(&lexer);
     diag_free(&diag);
     sm_free(&sm);
     arena_free(&arena);

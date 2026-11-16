@@ -595,7 +595,7 @@ static void register_functions(Sema *sema) {
         AstFnDecl *fn_decl = (AstFnDecl *)decl;
         if (sema_lookup_function(sema, fn_decl->name)) {
             sema_error_note(sema, fn_decl->base.pos, (int)strlen(fn_decl->name), E_DUPLICATE,
-                            "function overloading is not supported in Ryn 0.1",
+                            "function overloading is not supported in Ryn 0.2",
                             "function '%s' is already declared", fn_decl->name);
             continue;
         }
@@ -604,11 +604,13 @@ static void register_functions(Sema *sema) {
         if (fn_decl->is_extern) {
             fn->c_name = fn_decl->name;
         } else {
+            char *sanitized = ryn_identifier_from(fn_decl->name);
             StrBuf sb;
             sb_init(&sb);
-            sb_appendf(&sb, "ryn_%s", fn_decl->name);
+            sb_appendf(&sb, "ryn_%s", sanitized);
             fn->c_name = arena_strdup(sema->arena, sb.data);
             sb_free(&sb);
+            free(sanitized);
         }
         fn->nparams = fn_decl->nparams;
         fn->param_types = ARENA_ARRAY(sema->arena, Type *, fn_decl->nparams);
@@ -670,7 +672,7 @@ static void check_main(Sema *sema) {
     if (main_fn->nparams != 0) {
         sema_error_note(sema, main_fn->pos, 4, E_BAD_MAIN,
                         "command line arguments are planned for a future release",
-                        "'main' must not take parameters in Ryn 0.1");
+                        "'main' must not take parameters in Ryn 0.2");
     }
     if (!(main_fn->return_type->kind == TY_I32 || main_fn->return_type->kind == TY_VOID ||
           type_is_error(main_fn->return_type))) {

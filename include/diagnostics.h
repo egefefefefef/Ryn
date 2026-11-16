@@ -62,6 +62,7 @@ typedef enum DiagCode {
     E_UNSUPPORTED = 37,
     E_IO = 38,
     E_INTERNAL = 39,
+    E_IMPORT_CYCLE = 40,
 
     /* Warnings. */
     W_UNUSED_VARIABLE = 101,
