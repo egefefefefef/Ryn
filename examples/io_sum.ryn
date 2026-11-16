@@ -1,0 +1,16 @@
+# Reads numbers from standard input and prints their sum.
+import io
+
+fn main() -> i32:
+    print("How many numbers? ")
+    io.flush()
+    let count: i32 = io.read_int()
+    var total: i64 = 0
+    var i: i32 = 0
+    while i < count:
+        let value: i32 = io.read_int()
+        total += value as i64
+        i += 1
+    print("sum = ")
+    println(total)
+    return 0

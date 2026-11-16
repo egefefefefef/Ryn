@@ -1,0 +1,14 @@
+# Pointers and manual memory management.
+import mem
+
+fn main() -> i32:
+    var n: i32 = 10
+    let p: ptr<i32> = &n
+    *p = *p + 5
+    println(n)
+
+    let raw: ptr<i32> = mem.alloc(4) as ptr<i32>
+    *raw = 99
+    println(*raw)
+    mem.free(raw)
+    return 0

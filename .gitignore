@@ -1,0 +1,30 @@
+# CMake build trees
+/build/
+/build-*/
+/out/
+/cmake-build-*/
+
+# Object files and binaries
+*.o
+*.obj
+*.a
+*.lib
+*.exe
+*.pdb
+*.dSYM/
+
+# Compiled examples and default build outputs
+/hello
+/fibonacci
+/structs
+/pointers
+/enums
+/functions
+/io_sum
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
