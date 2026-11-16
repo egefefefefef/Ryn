@@ -20,9 +20,25 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DRYN_WERROR=ON
       - name: Build
-        run: cmake --build build --parallel
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! cmake --build build --parallel 2>&1 | tee build.log; then
+            while IFS= read -r line; do
+              echo "::error title=build::${line//'%'/'%25'}"
+            done < <(grep -E 'error:|warning:|Error [0-9]' build.log | head -25)
+            exit 1
+          fi
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! ctest --test-dir build --output-on-failure 2>&1 | tee test.log; then
+            while IFS= read -r line; do
+              echo "::error title=test::${line//'%'/'%25'}"
+            done < <(grep -E 'FAIL|Failed|error:|Error [0-9]' test.log | head -25)
+            exit 1
+          fi
       - name: Package
         run: |
           name="ryn-${RYN_VERSION}-linux-x86_64"
@@ -45,9 +61,25 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DRYN_WERROR=ON
           -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
       - name: Build
-        run: cmake --build build --parallel
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! cmake --build build --parallel 2>&1 | tee build.log; then
+            while IFS= read -r line; do
+              echo "::error title=build::${line//'%'/'%25'}"
+            done < <(grep -E 'error:|warning:|Error [0-9]' build.log | head -25)
+            exit 1
+          fi
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! ctest --test-dir build --output-on-failure 2>&1 | tee test.log; then
+            while IFS= read -r line; do
+              echo "::error title=test::${line//'%'/'%25'}"
+            done < <(grep -E 'FAIL|Failed|error:|Error [0-9]' test.log | head -25)
+            exit 1
+          fi
       - name: Package
         run: |
           name="ryn-${RYN_VERSION}-macos-universal"
@@ -80,18 +112,39 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
       - name: Build
-        run: cmake --build build --parallel
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! cmake --build build --parallel 2>&1 | tee build.log; then
+            while IFS= read -r line; do
+              echo "::error title=build::${line//'%'/'%25'}"
+            done < <(grep -E 'error:|warning:|Error [0-9]' build.log | head -25)
+            exit 1
+          fi
       - name: Test
+        shell: bash
         env:
           CC: gcc
-        run: ctest --test-dir build --output-on-failure
+        run: |
+          set -o pipefail
+          if ! ctest --test-dir build --output-on-failure 2>&1 | tee test.log; then
+            while IFS= read -r line; do
+              echo "::error title=test::${line//'%'/'%25'}"
+            done < <(grep -E 'FAIL|Failed|error:|Error [0-9]' test.log | head -25)
+            exit 1
+          fi
+      - name: Stage
+        shell: bash
+        run: |
+          rm -rf stage
+          cmake --install build --prefix "$PWD/stage"
       - name: Package
         shell: pwsh
         run: |
           $name = "ryn-$env:RYN_VERSION-windows-x86_64"
-          New-Item -ItemType Directory -Force -Path $name | Out-Null
-          & C:\msys64\mingw64\bin\cmake.exe --install build --prefix "$PWD/$name"
-          Compress-Archive -Path $name -DestinationPath "$name.zip"
+          if (Test-Path $name) { Remove-Item -Recurse -Force $name }
+          Move-Item stage $name
+          Compress-Archive -Path $name -DestinationPath "$name.zip" -Force
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x86_64
