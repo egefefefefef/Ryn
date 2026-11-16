@@ -1,0 +1,12 @@
+# Recursive Fibonacci, computed with explicit integer types.
+fn fib(n: i32) -> i64:
+    if n < 2:
+        return n as i64
+    return fib(n - 1) + fib(n - 2)
+
+fn main() -> i32:
+    for i in 0..12:
+        print(fib(i))
+        print(" ")
+    println("")
+    return 0

@@ -1,0 +1,22 @@
+# Enums are integer-backed and support comparison and explicit values.
+enum Direction:
+    North
+    East
+    South
+    West
+
+fn turn(d: Direction) -> Direction:
+    if d == Direction.North:
+        return Direction.East
+    if d == Direction.East:
+        return Direction.South
+    if d == Direction.South:
+        return Direction.West
+    return Direction.North
+
+fn main() -> i32:
+    var d = Direction.North
+    for i in 0..4:
+        println(d as i32)
+        d = turn(d)
+    return 0

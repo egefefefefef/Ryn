@@ -1,0 +1,4 @@
+# The classic first program.
+fn main() -> i32:
+    println("Hello, Ryn!")
+    return 0

@@ -1,0 +1,188 @@
+(*
+ * Ryn 0.1 — formal grammar
+ *
+ * The grammar operates on the token stream produced by the lexer. The lexer
+ * inserts three layout tokens:
+ *
+ *   NEWLINE  end of a logical line
+ *   INDENT   the start of a more deeply indented block
+ *   DEDENT   the end of such a block
+ *
+ * Newlines inside parentheses, brackets and braces are suppressed, so the
+ * productions below see a single logical line for a multi-line expression.
+ *
+ * Terminals written in quotes are literal lexemes; uppercase names are token
+ * classes. Comments and blank lines produce no tokens. See
+ * docs/language-spec.md for the concrete rules.
+ *)
+
+(* ------------------------------------------------------------------ *)
+(* Lexical                                                             *)
+(* ------------------------------------------------------------------ *)
+
+identifier      = IDENT ;
+integer         = INT ;
+floating        = FLOAT ;
+string          = STRING ;
+character       = CHAR ;
+
+(* An import is only legal before other declarations. *)
+program         = { NEWLINE | import | declaration } EOF ;
+
+import          = "import" identifier NEWLINE ;
+
+declaration     = function | struct | enumeration ;
+
+(* ------------------------------------------------------------------ *)
+(* Functions                                                           *)
+(* ------------------------------------------------------------------ *)
+
+function        = "fn" identifier "(" [ parameters [ "," ] ] ")"
+                  [ "->" type ] ":" block
+                | "extern" "fn" identifier "(" [ parameters [ "," ] ] ")"
+                  [ "->" type ] NEWLINE ;
+
+parameters      = parameter { "," parameter } ;
+
+parameter       = identifier ":" type ;
+
+(* ------------------------------------------------------------------ *)
+(* Types                                                               *)
+(* ------------------------------------------------------------------ *)
+
+type            = identifier
+                | "ptr" "<" type ">"
+                | "[" type ";" integer "]"
+                | "fn" "(" [ type { "," type } [ "," ] ] ")" [ "->" type ] ;
+
+(* ------------------------------------------------------------------ *)
+(* Structs and enums                                                   *)
+(* ------------------------------------------------------------------ *)
+
+struct          = "struct" identifier ":" NEWLINE
+                    INDENT field { NEWLINE field } [ NEWLINE ] DEDENT ;
+
+field           = identifier ":" type ;
+
+enumeration     = "enum" identifier ":" NEWLINE
+                    INDENT variant { NEWLINE variant } [ NEWLINE ] DEDENT ;
+
+variant         = identifier [ "=" [ "-" ] integer ] ;
+
+(* ------------------------------------------------------------------ *)
+(* Statements                                                          *)
+(* ------------------------------------------------------------------ *)
+
+statement       = variable_declaration
+                | assignment
+                | expression_statement
+                | if_statement
+                | while_statement
+                | for_statement
+                | return_statement
+                | break_statement
+                | continue_statement ;
+
+variable_declaration = ( "let" | "var" ) identifier [ ":" type ]
+                       [ "=" expression ] ;
+
+assignment      = expression assign_operator expression ;
+
+assign_operator = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
+
+expression_statement = expression ;
+
+if_statement    = "if" expression ":" block
+                  [ "else" ( if_statement | ":" block ) ] ;
+
+while_statement = "while" expression ":" block ;
+
+for_statement   = "for" identifier "in" expression
+                  ( ".." | "..=" ) expression ":" block ;
+
+return_statement = "return" [ expression ] ;
+
+break_statement    = "break" ;
+continue_statement = "continue" ;
+
+block           = NEWLINE INDENT { statement } DEDENT ;
+
+(* ------------------------------------------------------------------ *)
+(* Expressions                                                         *)
+(* ------------------------------------------------------------------ *)
+
+expression      = logical_or ;
+
+logical_or      = logical_and { ( "or" | "||" ) logical_and } ;
+
+logical_and     = logical_not { ( "and" | "&&" ) logical_not } ;
+
+logical_not     = "not" logical_not
+                | comparison ;
+
+comparison      = bitwise_or { compare_operator bitwise_or } ;
+
+compare_operator = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
+
+bitwise_or      = bitwise_xor { "|" bitwise_xor } ;
+
+bitwise_xor     = bitwise_and { "^" bitwise_and } ;
+
+bitwise_and     = shift { "&" shift } ;
+
+shift           = additive { ( "<<" | ">>" ) additive } ;
+
+additive        = multiplicative { ( "+" | "-" ) multiplicative } ;
+
+multiplicative  = unary { ( "*" | "/" | "%" ) unary } ;
+
+unary           = ( "-" | "+" | "!" | "~" | "&" | "*" ) unary
+                | postfix ;
+
+(* Calls, field access, indexing and casts share one left-to-right level. *)
+postfix         = primary { call_suffix | index_suffix | field_suffix | cast_suffix } ;
+
+cast_suffix     = "as" type ;
+
+call_suffix     = "(" [ arguments [ "," ] ] ")" ;
+
+arguments       = expression { "," expression } ;
+
+index_suffix    = "[" expression "]" ;
+
+field_suffix    = "." identifier ;
+
+primary         = integer
+                | floating
+                | string
+                | character
+                | "true"
+                | "false"
+                | "null"
+                | identifier
+                | "(" expression ")"
+                | array_literal
+                | struct_literal ;
+
+array_literal   = "[" "]"                                   (* empty *)
+                | "[" expression { "," expression } [ "," ] "]"
+                | "[" expression ";" integer "]" ;          (* repeat form *)
+
+struct_literal  = identifier "{" [ initializer { "," initializer } [ "," ] ] "}" ;
+
+initializer     = identifier ":" expression ;
+
+(*
+ * Notes
+ *
+ *  - Slices (`[]T`) and generic parameter lists are reserved syntax. The
+ *    parser recognises them and reports E0037; they are not part of the
+ *    accepted language in 0.1.
+ *  - There is no operator precedence between the six comparison operators:
+ *    they are left-associative at one level, as in C.
+ *  - `not` is a logical operator parsed above comparisons; `!` is a unary
+ *    operator parsed with the other prefixes.
+ *  - Casts bind tighter than unary operators: `-x as i64` is `-(x as i64)`.
+ *  - Assignment is a statement, not an expression; chained assignment is not
+ *    accepted.
+ *)

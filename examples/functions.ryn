@@ -1,0 +1,17 @@
+# Function values: names can be stored, passed and returned.
+
+fn square(x: i32) -> i32:
+    return x * x
+
+fn apply(f: fn(i32) -> i32, value: i32) -> i32:
+    return f(value)
+
+struct Transform:
+    op: fn(i32) -> i32
+
+fn main() -> i32:
+    let t = Transform { op: square }
+    println(apply(t.op, 7))
+    let g: fn(i32) -> i32 = square
+    println(g(9))
+    return 0
