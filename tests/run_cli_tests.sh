@@ -61,11 +61,16 @@ check_contains() {
     fi
 }
 
+# Strip carriage returns so text-mode stdout on Windows compares equal.
+normalize_text() {
+    printf '%s' "$1" | tr -d '\r'
+}
+
 check_output() {
     description=$1
     expected=$2
     actual=$3
-    if [ "$actual" = "$expected" ]; then
+    if [ "$(normalize_text "$actual")" = "$(normalize_text "$expected")" ]; then
         pass
     else
         fail "$description (got '$actual', expected '$expected')"
