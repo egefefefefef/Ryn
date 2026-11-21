@@ -221,7 +221,6 @@ src/                compiler implementation (C17)
   rynx.c            rynx package manager command line interface
 runtime/            C runtime used by generated programs
 tests/              unit tests and CLI integration tests
-benchmarks/         C vs Ryn runtime and build-time benchmarks
 docs/               specification and architecture documents
 examples/           runnable example programs
 ```
@@ -246,25 +245,6 @@ Warnings are not failures. Diagnostics are rendered as
 `error[E0003]: message`, followed by `file:line:column`, a source excerpt with a
 caret, and an optional note. The full code list is in
 [docs/diagnostics.md](docs/diagnostics.md).
-
-## Benchmarking
-
-`benchmarks/` contains identical Ryn and C implementations of four workloads
-(loop-carried arithmetic, recursion, a sieve, and insertion sort). The runner
-compiles both with the same `cc -O2`, verifies identical output, and reports
-runtime and build time separately:
-
-```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-python3 benchmarks/run_benchmarks.py --ryn build/ryn
-```
-
-On the reference Linux x86-64/GCC 12 run, Ryn was within 0-21% of C at runtime
-(geometric mean about 1.07x), while a full Ryn build is slower because it
-recompiles the runtime. See [benchmarks/README.md](benchmarks/README.md) and
-[benchmarks/RESULTS.md](benchmarks/RESULTS.md) for methodology, raw numbers and
-caveats.
 
 ## Documentation
 
