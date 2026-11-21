@@ -1,0 +1,22 @@
+import mem
+
+fn main() -> i32:
+    let n: i64 = 50000
+    var a = mem.alloc((n * 4) as u64) as ptr<i32>
+    var i: i64 = 0
+    while i < n:
+        a[i] = (n - i) as i32
+        i = i + 1
+    var j: i64 = 1
+    while j < n:
+        let key = a[j]
+        var k: i64 = j - 1
+        while k >= 0 and a[k] > key:
+            a[k + 1] = a[k]
+            k = k - 1
+        a[k + 1] = key
+        j = j + 1
+    println(a[0])
+    println(a[n - 1])
+    mem.free(a as ptr<void>)
+    return 0
